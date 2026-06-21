@@ -9,7 +9,7 @@ import {
   restoreEmailTemplate, deleteEmailTemplate, type EmailTemplate,
 } from "../../services/emailTemplateService";
 import {
-  fetchMailLog, fetchArchivedMailLog, sendMail, markMailLogSent,
+  fetchMailLog, fetchArchivedMailLog, sendMail, markMailLogSent, scheduleMail,
   archiveMailLogEntry, restoreMailLogEntry, deleteMailLogEntry, type MailLogEntry,
 } from "../../services/mailLogService";
 import { supabase } from "../../lib/supabase";
@@ -56,7 +56,10 @@ export function Communications({ plan = "All Plans", search = "" }: { plan?: str
   const [editName, setEN]         = useState("");
   const [editDesc, setED]         = useState("");
   const [isNew, setIsNew]         = useState(false);
-  const [selTpl, setSelTpl]       = useState<Record<string, string>>({});
+  const [selTpl,    setSelTpl]    = useState<Record<string, string>>({});
+  const [schedDate, setSchedDate] = useState<Record<string, string>>({});
+  const [schedTime, setSchedTime] = useState<Record<string, string>>({});
+  const [schedTpl,  setSchedTpl]  = useState<Record<string, string>>({});
   const [flash, setFlash]         = useState<string | null>(null);
   const [activeTab, setATab]      = useState<"queue" | "templates" | "log">("queue");
   const [showArch, setShowArch]   = useState(false);
@@ -107,8 +110,8 @@ export function Communications({ plan = "All Plans", search = "" }: { plan?: str
   const activeTpls = tpls.filter(t => !t.archived);
 
   async function handleSendMail(s: typeof allS[0]) {
-    const tplName = selTpl[s.id] || activeTpls[0]?.name || "";
-    const tplEntry = activeTpls.find(t => t.name === tplName) ?? activeTpls[0];
+    const tplName  = selTpl[s.id] || "";
+    const tplEntry = activeTpls.find(t => t.name === tplName);
     if (!tplEntry) return;
 
     setFlash(s.id);
@@ -128,6 +131,25 @@ export function Communications({ plan = "All Plans", search = "" }: { plan?: str
     }
     setTimeout(() => setFlash(null), 2000);
     // allS will refresh via useLiveEnrollments realtime (mail_sent updated in DB by edge function)
+  }
+
+  async function handleScheduleMail(s: typeof allS[0]) {
+    const tplName  = schedTpl[s.id]  || activeTpls[0]?.name || "";
+    const tplEntry = activeTpls.find(t => t.name === tplName) ?? activeTpls[0];
+    const date     = schedDate[s.id] || "";
+    const time     = schedTime[s.id] || "09:00";
+    if (!tplEntry || !date) return;
+    try {
+      await scheduleMail({
+        enrollmentId:  s.id,
+        sentTo:        s.name,
+        email:         s.email,
+        templateName:  tplEntry.name,
+        body:          tplEntry.body,
+        scheduledFor:  `${date}T${time}:00`,
+      });
+      setSelTpl(p => ({ ...p, [s.id]: "" }));
+    } catch(e) { console.error("scheduleMail failed:", e); }
   }
 
   function openEdit(id: string) {
@@ -266,7 +288,6 @@ export function Communications({ plan = "All Plans", search = "" }: { plan?: str
                   <tbody>
                     {mailPagedStudents.map(s => {
                       const sent = flash === s.id;
-                      const tplName = selTpl[s.id] || activeTpls[0]?.name || "";
                       return (
                         <tr key={s.id} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
                           <td className="px-6 py-3.5">
@@ -290,21 +311,48 @@ export function Communications({ plan = "All Plans", search = "" }: { plan?: str
                             )}
                           </td>
                           <td className="px-6 py-3.5">
-                            <select value={tplName}
+                            <select value={selTpl[s.id] ?? ""}
                               onChange={e => setSelTpl(p => ({ ...p, [s.id]: e.target.value }))}
                               className="bg-muted border border-border rounded-xl px-2.5 py-1.5 outline-none focus:ring-1 focus:ring-primary text-foreground appearance-none" style={{ fontSize: 12 }}>
+                              <option value="">Select template</option>
                               {activeTpls.map(t => (
                                 <option key={t.id} value={t.name}>{t.name}</option>
                               ))}
+                              <option disabled>──────────────</option>
+                              <option value="__schedule__">📅 Schedule Mail</option>
                             </select>
                           </td>
                           <td className="px-6 py-3.5">
-                            <button onClick={() => handleSendMail(s)}
-                              className={`flex items-center gap-1.5 px-4 py-2 rounded-full transition-all ${sent ? "bg-emerald-500 text-white" : "bg-primary text-white hover:opacity-90"}`}
-                              style={{ fontSize: 12 }}>
-                              {sent ? <CheckCircle size={12} /> : <Send size={12} />}
-                              {sent ? "Sent!" : "Send Mail"}
-                            </button>
+                            {selTpl[s.id] === "__schedule__" ? (
+                              <div className="flex flex-col gap-1.5">
+                                <select value={schedTpl[s.id] || ""}
+                                  onChange={e => setSchedTpl(p => ({ ...p, [s.id]: e.target.value }))}
+                                  className="bg-muted border border-border rounded-xl px-2 py-1 outline-none focus:ring-1 focus:ring-primary text-foreground appearance-none" style={{ fontSize: 11 }}>
+                                  <option value="">Select template</option>
+                                  {activeTpls.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
+                                </select>
+                                <div className="flex gap-1">
+                                  <input type="date" value={schedDate[s.id] || ""}
+                                    onChange={e => setSchedDate(p => ({ ...p, [s.id]: e.target.value }))}
+                                    className="bg-muted border border-border rounded-xl px-2 py-1 outline-none text-foreground flex-1" style={{ fontSize: 11 }}/>
+                                  <input type="time" value={schedTime[s.id] || "09:00"}
+                                    onChange={e => setSchedTime(p => ({ ...p, [s.id]: e.target.value }))}
+                                    className="bg-muted border border-border rounded-xl px-2 py-1 outline-none text-foreground" style={{ fontSize: 11, width: 80 }}/>
+                                </div>
+                                <button onClick={() => handleScheduleMail(s)}
+                                  className="px-3 py-1.5 rounded-full bg-primary text-white hover:opacity-90 transition-all"
+                                  style={{ fontSize: 11 }}>
+                                  Schedule
+                                </button>
+                              </div>
+                            ) : (
+                              <button onClick={() => handleSendMail(s)}
+                                disabled={!selTpl[s.id]}
+                                className={`px-4 py-2 rounded-full transition-all ${sent ? "bg-emerald-500 text-white" : "bg-primary text-white hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"}`}
+                                style={{ fontSize: 12 }}>
+                                {sent ? "Sent!" : "Send Mail"}
+                              </button>
+                            )}
                           </td>
                         </tr>
                       );

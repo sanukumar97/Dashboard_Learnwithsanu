@@ -171,7 +171,7 @@ export function Analytics({ year, plan, onStudentClick }: {
       {/* KPI Cards */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
         <KpiCard title="Total Onboarded" value={total}  sub={`${pct >= 0 ? "+" : ""}${pct}% vs prior year`} trend={pct >= 0 ? "up" : "down"} icon={Users}        accent="#3B5BFF"/>
-        <KpiCard title="Active Clients" value={active} sub={`+${added} this month`}                         trend="up"                        icon={UserCheck}    accent="#22C55E"/>
+        <KpiCard title="Active Students" value={active} sub={`+${added} this month`}                         trend="up"                        icon={UserCheck}    accent="#22C55E"/>
         <KpiCard title="Sessions"       value={sched}  sub={`${unpend} unscheduled`}                        trend="neutral"                   icon={CalendarClock} accent="#8B5CF6"/>
         <KpiCard title="Mails Sent"     value={mails}  sub={`${openR}% send rate`}                          trend="up"                        icon={Mail}         accent="#F59E0B"/>
       </div>

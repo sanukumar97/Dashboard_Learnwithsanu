@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import {
-  CalendarClock, Copy, CheckCircle, AlertCircle, RotateCcw,
+  ChevronDown, Copy, CheckCircle, AlertCircle, RotateCcw,
   Clock, MessageCircle, Mail, Save, Video, Send, X,
 } from "lucide-react";
 import { useLiveEnrollments } from "../hooks/useLiveEnrollments";
@@ -635,8 +635,9 @@ export function Sessions({ plan = "All Plans", search = "", onStudentClick }: Pr
 
         {activeTab !== "pending" && (
           <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
-            <div className="flex items-center gap-1.5 bg-primary/10 border border-primary/25 rounded-xl px-3 py-1.5">
-              <CalendarClock size={13} className="text-primary flex-shrink-0" />
+            <div className="flex items-center gap-1.5 bg-secondary border border-primary/20 rounded-xl px-3 py-1.5"
+              style={{ boxShadow: "0 1px 4px rgba(26,42,241,0.08)" }}>
+              <ChevronDown size={12} className="text-primary flex-shrink-0" />
               <select value={sessionRange} onChange={e => setSessionRange(e.target.value as SessionRange)}
                 className="bg-transparent outline-none text-primary font-semibold appearance-none cursor-pointer" style={{ fontSize: 12 }}>
                 <option value="all">All</option>
@@ -647,11 +648,9 @@ export function Sessions({ plan = "All Plans", search = "", onStudentClick }: Pr
             </div>
             <div className="flex items-center gap-1.5 bg-secondary border border-primary/20 rounded-xl px-3 py-1.5"
               style={{ boxShadow: "0 1px 4px rgba(26,42,241,0.08)" }}>
-              <CalendarClock size={13} className="text-primary flex-shrink-0" />
               <input type="date" value={filterDate}
                 onChange={e => setFilterDate(e.target.value)}
-                placeholder="Pick date"
-                className="bg-transparent outline-none text-foreground font-medium cursor-pointer" style={{ fontSize: 12 }} />
+                className="bg-transparent outline-none text-primary font-semibold cursor-pointer [color-scheme:light] dark:[color-scheme:dark]" style={{ fontSize: 12 }} />
               {filterDate && (
                 <button onClick={() => setFilterDate("")}
                   className="text-muted-foreground hover:text-foreground transition-colors ml-0.5" style={{ fontSize: 14, lineHeight: 1 }}>

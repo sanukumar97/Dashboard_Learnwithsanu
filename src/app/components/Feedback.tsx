@@ -194,7 +194,7 @@ export function Feedback() {
   const allLabels = [...new Set(filteredRows.flatMap(r => getFields(r.raw_payload).map(f => f.label)))];
 
   // Pagination
-  const PAGE_SIZE = 10;
+  const PAGE_SIZE = 20;
   const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
   const safePage   = Math.min(page, totalPages);
   const pagedRows  = filteredRows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
@@ -236,35 +236,23 @@ export function Feedback() {
       {/* ── Sticky header ── */}
       <div className="sticky top-0 z-20 bg-card border-b border-border"
         style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
-        <div className="px-5 py-3.5 flex items-center justify-between">
-          <h2 className="text-foreground">Feedback</h2>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-5 space-y-4" style={{ fontFamily: "Inter, sans-serif" }}>
-
-        {/* form filter capsules */}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {FORMS.map(f => (
-            <button key={f.id}
-              onClick={() => { setSelectedForm(f.id); setPage(1); }}
-              className={`px-3.5 py-1 rounded-full text-[11px] font-semibold border transition-all ${
-                selectedForm === f.id
-                  ? "text-white border-transparent"
-                  : "text-[#64748B] border-[#E8ECF0] hover:border-gray-300 hover:bg-gray-50"
-              }`}
-              style={selectedForm === f.id ? { background: C.dark } : {}}>
-              {f.label}
-            </button>
-          ))}
-        </div>
-
-        {/* page header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-[15px] font-bold text-gray-900 dark:text-white">Feedback</h1>
-            <p className="text-[11px] text-gray-400 mt-0.5">Student ratings and course reviews</p>
+        <div className="px-5 py-3 flex items-center justify-between gap-3 flex-wrap">
+          {/* Form capsules */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {FORMS.map(f => (
+              <button key={f.id}
+                onClick={() => { setSelectedForm(f.id); setPage(1); }}
+                className={`px-4 py-1.5 rounded-full font-medium border transition-all ${
+                  selectedForm === f.id
+                    ? "bg-primary text-white border-primary shadow-sm"
+                    : "bg-transparent text-muted-foreground border-border hover:border-primary/50 hover:text-foreground"
+                }`}
+                style={{ fontSize: 13 }}>
+                {f.label}
+              </button>
+            ))}
           </div>
+          {/* Filter + Export */}
           <div className="flex items-center gap-2">
             {/* Filter button + dropdown */}
             <div className="relative" ref={filterRef}>
@@ -346,36 +334,49 @@ export function Feedback() {
             </button>
           </div>
         </div>
+      </div>
 
-        {/* Total Responses stat card */}
-        <div className="w-48">
-          <div className="bg-white dark:bg-card rounded-2xl border border-[#E8ECF0] dark:border-border p-3.5 flex flex-col gap-2">
-            <div className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full" style={{ background: C.blue }} />
-              <span className="text-[8px] font-bold text-gray-400 tracking-widest uppercase leading-none">TOTAL RESPONSES</span>
+      <div className="flex-1 overflow-y-auto p-5 space-y-4" style={{ fontFamily: "Inter, sans-serif" }}>
+
+        {/* Page heading */}
+        <div>
+          <h2 className="text-foreground font-bold" style={{ fontSize: 20 }}>Feedback</h2>
+          <p style={{ fontSize: 12 }} className="text-muted-foreground mt-0.5">Student ratings and course reviews</p>
+        </div>
+
+        {/* Total Responses KPI card */}
+        <div className="w-56">
+          <div className="bg-card rounded-3xl p-5 flex flex-col gap-4" style={{ boxShadow: "var(--shadow-card)" }}>
+            <div className="flex items-start justify-between">
+              <p style={{ fontSize: 11, letterSpacing: "0.06em" }} className="font-semibold text-muted-foreground uppercase">Total Responses</p>
+              <div className="size-10 rounded-2xl flex items-center justify-center" style={{ background: C.blue + "18" }}>
+                <MessageSquare size={18} style={{ color: C.blue }} />
+              </div>
             </div>
-            <div className="text-[28px] font-extrabold leading-none tracking-tight" style={{ color: C.blue }}>{total}</div>
-            <span className="text-[9px] text-gray-400">responses</span>
+            <div>
+              <p className="font-bold text-foreground" style={{ fontSize: 32, lineHeight: 1 }}>{total}</p>
+              <p style={{ fontSize: 12 }} className="text-muted-foreground mt-2">responses collected</p>
+            </div>
           </div>
         </div>
 
         {/* Responses table card */}
-        <div className="bg-white dark:bg-card rounded-2xl border border-[#E8ECF0] dark:border-border overflow-hidden">
-          <div className="flex items-center justify-between px-5 py-3.5 border-b border-[#F1F5F9]">
+        <div className="bg-card rounded-3xl border border-border overflow-hidden" style={{ boxShadow: "var(--shadow-card)" }}>
+          <div className="flex items-center justify-between px-5 py-3.5 border-b border-border">
             <div className="flex items-center gap-2">
-              <span className="text-[13px] font-bold text-gray-900 dark:text-white">Responses</span>
+              <span className="text-[13px] font-bold text-foreground">Responses</span>
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                style={{ background: C.blueLight, color: C.blue }}>{filteredRows.length}</span>
+                style={{ background: C.blue + "18", color: C.blue }}>{filteredRows.length}</span>
             </div>
           </div>
 
           {loading ? (
-            <div className="flex items-center justify-center py-16 text-[12px] text-gray-400">Loading responses…</div>
+            <div className="flex items-center justify-center py-16 text-[12px] text-muted-foreground">Loading responses…</div>
           ) : feedbackRows.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 gap-3">
-              <MessageSquare size={32} className="text-gray-200" />
-              <p className="text-[13px] font-semibold text-gray-400">No responses yet</p>
-              <p className="text-[11px] text-gray-300">Submit the Tally form to see responses here</p>
+              <MessageSquare size={32} className="text-muted-foreground/30" />
+              <p className="text-[13px] font-semibold text-muted-foreground">No responses yet</p>
+              <p className="text-[11px] text-muted-foreground/60">Submit the Tally form to see responses here</p>
             </div>
           ) : (
             <>
@@ -383,25 +384,25 @@ export function Feedback() {
               <div className="overflow-x-auto">
                 <table style={{ tableLayout: "fixed", borderCollapse: "collapse", width: "max-content", minWidth: "100%" }}>
                   <thead>
-                    <tr className="bg-[#FAFBFC] dark:bg-secondary border-b border-[#F1F5F9] dark:border-border">
-                      <th className="relative px-3 py-2.5 text-left"
-                        style={{ width: colWidths["#"] ?? 44, minWidth: 44 }}>
-                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">#</span>
+                    <tr className="bg-muted/50 border-b border-border">
+                      <th className="relative px-4 py-3 text-left"
+                        style={{ width: colWidths["#"] ?? 48, minWidth: 44 }}>
+                        <span className="font-semibold text-muted-foreground uppercase" style={{ fontSize: 11, letterSpacing: "0.07em" }}>#</span>
                         <div onMouseDown={e => startResize("#", e)}
-                          className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-[#4A6CF7]/40 select-none" />
+                          className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-primary/40 select-none" />
                       </th>
-                      <th className="relative px-3 py-2.5 text-left"
-                        style={{ width: colWidths["date"] ?? 110, minWidth: 80 }}>
-                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Date</span>
+                      <th className="relative px-4 py-3 text-left"
+                        style={{ width: colWidths["date"] ?? 120, minWidth: 90 }}>
+                        <span className="font-semibold text-muted-foreground uppercase" style={{ fontSize: 11, letterSpacing: "0.07em" }}>Date</span>
                         <div onMouseDown={e => startResize("date", e)}
-                          className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-[#4A6CF7]/40 select-none" />
+                          className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-primary/40 select-none" />
                       </th>
                       {allLabels.map(label => (
-                        <th key={label} className="relative px-3 py-2.5 text-left"
-                          style={{ width: colWidths[label] ?? 160, minWidth: 80 }}>
-                          <span className="block text-[9px] font-bold text-gray-400 uppercase tracking-widest pr-2 break-words whitespace-normal leading-snug">{label}</span>
+                        <th key={label} className="relative px-4 py-3 text-left"
+                          style={{ width: colWidths[label] ?? 180, minWidth: 90 }}>
+                          <span className="block font-semibold text-muted-foreground uppercase pr-2 break-words whitespace-normal leading-snug" style={{ fontSize: 11, letterSpacing: "0.07em" }}>{label}</span>
                           <div onMouseDown={e => startResize(label, e)}
-                            className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-[#4A6CF7]/40 select-none" />
+                            className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-primary/40 select-none" />
                         </th>
                       ))}
                     </tr>
@@ -417,29 +418,29 @@ export function Feedback() {
                       const color    = AV_COLORS[idx % AV_COLORS.length];
                       return (
                         <tr key={r.id}
-                          className={`border-b border-[#F8FAFC] dark:border-border hover:bg-[#FAFBFF] dark:hover:bg-secondary/50 transition-colors ${idx % 2 === 1 ? "bg-[#FAFBFC]/60 dark:bg-secondary/20" : ""}`}>
-                          <td className="px-3 py-2.5 align-top" style={{ width: colWidths["#"] ?? 44 }}>
-                            <div className="w-6 h-6 rounded-full flex items-center justify-center text-white text-[9px] font-bold"
-                              style={{ background: color }}>{rowNum}</div>
+                          className="border-b border-border hover:bg-muted/30 transition-colors">
+                          <td className="px-4 py-3 align-top" style={{ width: colWidths["#"] ?? 48 }}>
+                            <div className="w-6 h-6 rounded-full flex items-center justify-center text-white font-bold"
+                              style={{ background: color, fontSize: 10 }}>{rowNum}</div>
                           </td>
-                          <td className="px-3 py-2.5 align-top text-[11px] text-gray-400 whitespace-nowrap"
-                            style={{ width: colWidths["date"] ?? 110 }}>{date}</td>
+                          <td className="px-4 py-3 align-top text-muted-foreground whitespace-nowrap"
+                            style={{ width: colWidths["date"] ?? 120, fontSize: 13 }}>{date}</td>
                           {allLabels.map(label => {
                             const val      = fieldMap[label] ?? "–";
                             const isRating = ["worst","bad","average","best"].includes(val.toLowerCase());
                             return (
-                              <td key={label} className="px-3 py-2.5 align-top"
-                                style={{ width: colWidths[label] ?? 160 }}>
+                              <td key={label} className="px-4 py-3 align-top"
+                                style={{ width: colWidths[label] ?? 180 }}>
                                 {isRating ? (
                                   <div className="flex items-center gap-1.5">
                                     <Stars n={ratingToStars(val)} />
-                                    <span className="text-[9px] text-gray-400 capitalize whitespace-nowrap">{val}</span>
+                                    <span className="text-muted-foreground capitalize whitespace-nowrap" style={{ fontSize: 11 }}>{val}</span>
                                   </div>
                                 ) : val === "–" ? (
-                                  <span className="text-gray-300 text-[11px]">—</span>
+                                  <span className="text-muted-foreground/30" style={{ fontSize: 13 }}>—</span>
                                 ) : (
                                   <div className="group relative">
-                                    <span className="text-[11px] text-gray-700 dark:text-gray-300 break-words whitespace-normal leading-relaxed">{val}</span>
+                                    <span className="text-foreground break-words whitespace-normal leading-relaxed" style={{ fontSize: 13 }}>{val}</span>
                                     <button
                                       onClick={() => {
                                         const key = `${r.id}-${label}`;
@@ -447,11 +448,11 @@ export function Feedback() {
                                         setCopiedKey(key);
                                         setTimeout(() => setCopiedKey(k => k === key ? null : k), 1500);
                                       }}
-                                      className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded-md hover:bg-[#EEF1FE]"
+                                      className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded-md hover:bg-primary/10"
                                       title="Copy">
                                       {copiedKey === `${r.id}-${label}`
                                         ? <Check size={11} className="text-emerald-500" />
-                                        : <Copy  size={11} className="text-gray-400 hover:text-[#4A6CF7]" />}
+                                        : <Copy  size={11} className="text-muted-foreground hover:text-primary" />}
                                     </button>
                                   </div>
                                 )}
@@ -466,24 +467,23 @@ export function Feedback() {
               </div>
 
               {/* Pagination */}
-              <div className="flex items-center justify-between px-5 py-3.5 border-t border-[#F1F5F9]">
-                <span className="text-[10px] text-gray-400">
+              <div className="flex items-center justify-between px-5 py-3.5 border-t border-border">
+                <span className="text-muted-foreground" style={{ fontSize: 12 }}>
                   Showing {Math.min((safePage - 1) * PAGE_SIZE + 1, filteredRows.length)}–{Math.min(safePage * PAGE_SIZE, filteredRows.length)} of {filteredRows.length}
                 </span>
                 <div className="flex items-center gap-1">
                   <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={safePage === 1}
-                    className="w-7 h-7 flex items-center justify-center rounded-xl border border-[#E8ECF0] text-gray-400 hover:bg-gray-50 disabled:opacity-30 transition-colors">
+                    className="w-7 h-7 flex items-center justify-center rounded-xl border border-border text-muted-foreground hover:bg-muted disabled:opacity-30 transition-colors">
                     <ChevronLeft size={12} />
                   </button>
                   {Array.from({ length: totalPages }, (_, i) => i + 1).slice(0, 7).map(n => (
                     <button key={n} onClick={() => setPage(n)}
-                      className={`w-7 h-7 rounded-xl text-[11px] font-semibold transition-all ${safePage === n ? "text-white shadow-sm" : "text-gray-400 hover:bg-gray-50"}`}
-                      style={safePage === n ? { background: C.blue } : {}}>
+                      className={`w-7 h-7 rounded-xl text-[11px] font-semibold transition-all ${safePage === n ? "bg-primary text-white shadow-sm" : "text-muted-foreground hover:bg-muted"}`}>
                       {n}
                     </button>
                   ))}
                   <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={safePage === totalPages}
-                    className="w-7 h-7 flex items-center justify-center rounded-xl border border-[#E8ECF0] text-gray-400 hover:bg-gray-50 disabled:opacity-30 transition-colors">
+                    className="w-7 h-7 flex items-center justify-center rounded-xl border border-border text-muted-foreground hover:bg-muted disabled:opacity-30 transition-colors">
                     <ChevronRight size={12} />
                   </button>
                 </div>

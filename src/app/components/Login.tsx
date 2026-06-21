@@ -147,7 +147,7 @@ export function Login({ onLogin }: Props) {
 
         {/* Logo */}
         <div className="relative flex items-center gap-3">
-          <img src={logoImg} alt="LearnWithSanu" className="h-11 w-auto object-contain"/>
+          <img src={logoImg} alt="LearnWithSanu" className="h-11 w-auto object-contain" style={{ filter:"brightness(0) invert(1)" }}/>
         </div>
 
         {/* Hero text */}

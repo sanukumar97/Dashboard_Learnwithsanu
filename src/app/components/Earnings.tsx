@@ -117,9 +117,43 @@ export function Earnings({ year, plan }: { year: string; plan: string }) {
     };
   }).filter(p => p.count > 0);
 
-  /* Revenue prediction */
-  const growthRate1 = 0.22;
-  const growthRate2 = 0.25;
+  /* Revenue prediction — rates derived from actual YoY data when available */
+  const year2Revenue = allStudents
+    .filter(s => new Date(s.enrolledDate).getFullYear() === yearNum - 2 && (plan === "All Plans" || s.planSlug === plan))
+    .reduce((sum, s) => sum + s.planPrice, 0);
+
+  const g1 = year2Revenue > 0 && prevRevenue > 0
+    ? (prevRevenue - year2Revenue) / year2Revenue   // yearNum-2 → yearNum-1
+    : null;
+  const g2 = prevRevenue > 0 && totalRevenue > 0
+    ? (totalRevenue - prevRevenue) / prevRevenue    // yearNum-1 → yearNum
+    : null;
+
+  function clampRate(r: number) { return Math.min(Math.max(r, -0.30), 0.80); }
+
+  let growthRate1: number;
+  let growthRate2: number;
+  let rateSource: "actual" | "partial" | "default";
+
+  if (g1 !== null && g2 !== null) {
+    // Two years of history — weighted average (recent year counts more)
+    const derived = g1 * 0.4 + g2 * 0.6;
+    growthRate1 = clampRate(derived);
+    growthRate2 = clampRate(derived * 1.05);
+    rateSource = "actual";
+  } else if (g2 !== null) {
+    // One year of history
+    growthRate1 = clampRate(g2);
+    growthRate2 = clampRate(g2);
+    rateSource = "partial";
+  } else {
+    growthRate1 = 0.22;
+    growthRate2 = 0.25;
+    rateSource = "default";
+  }
+
+  const pct1 = Math.round(growthRate1 * 100);
+  const pct2 = Math.round(growthRate2 * 100);
   const prediction1 = Math.round(totalRevenue * (1 + growthRate1));
   const prediction2 = Math.round(prediction1  * (1 + growthRate2));
   const predData = [
@@ -166,8 +200,8 @@ export function Earnings({ year, plan }: { year: string; plan: string }) {
       {/* Date filter toolbar */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-foreground font-bold" style={{ fontSize: 15 }}>Revenue</h2>
-          <p style={{ fontSize: 11 }} className="text-muted-foreground mt-0.5">
+          <h2 className="text-foreground font-bold" style={{ fontSize: 20 }}>Revenue</h2>
+          <p style={{ fontSize: 12 }} className="text-muted-foreground mt-0.5">
             {isFiltered
               ? `Filtered: ${appliedFrom || "∞"} → ${appliedTo || "∞"}`
               : "All enrollments in selected period"}
@@ -345,7 +379,11 @@ export function Earnings({ year, plan }: { year: string; plan: string }) {
           <h3 className="text-foreground">Revenue Prediction</h3>
         </div>
         <p style={{ fontSize: 12 }} className="text-muted-foreground mb-5">
-          Projected growth at 22% ({yearNum + 1}) and 25% ({yearNum + 2}) based on current trajectory
+          Projected growth at {pct1}% ({yearNum + 1}) and {pct2}% ({yearNum + 2})
+          {" · "}
+          {rateSource === "actual"  && "rates derived from 2 years of actual data"}
+          {rateSource === "partial" && "rate derived from last year's actual growth"}
+          {rateSource === "default" && "default estimate — not enough historical data yet"}
         </p>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           <div className="lg:col-span-2">
@@ -363,8 +401,8 @@ export function Earnings({ year, plan }: { year: string; plan: string }) {
           </div>
           <div className="flex flex-col gap-3">
             {[
-              { year: yearNum + 1, value: prediction1, growth: 22, color: "#7E9BFF" },
-              { year: yearNum + 2, value: prediction2, growth: 25, color: "#A5B4FF" },
+              { year: yearNum + 1, value: prediction1, growth: pct1, color: "#7E9BFF" },
+              { year: yearNum + 2, value: prediction2, growth: pct2, color: "#A5B4FF" },
             ].map(p => (
               <div key={p.year} className="rounded-2xl p-4" style={{ background: p.color + "18", border: `1px solid ${p.color}44` }}>
                 <div className="flex items-center gap-2 mb-2">
@@ -372,7 +410,9 @@ export function Earnings({ year, plan }: { year: string; plan: string }) {
                   <p style={{ fontSize: 12, color: p.color }} className="font-semibold">Projected {p.year}</p>
                 </div>
                 <p className="font-bold text-foreground" style={{ fontSize: 22, lineHeight: 1 }}>{fmtFull(p.value)}</p>
-                <p style={{ fontSize: 11 }} className="text-muted-foreground mt-1.5">+{p.growth}% growth rate assumed</p>
+                <p style={{ fontSize: 11 }} className="text-muted-foreground mt-1.5">
+                  {p.growth >= 0 ? "+" : ""}{p.growth}% {rateSource === "default" ? "estimated" : "based on actuals"}
+                </p>
               </div>
             ))}
           </div>

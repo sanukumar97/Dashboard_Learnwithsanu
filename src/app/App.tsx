@@ -26,7 +26,7 @@ const NAV: { id: Tab; label: string; icon: any; emoji?: string }[] = [
   { id:"enrollment",    label:"Onboarding",    icon:ClipboardList },
   { id:"analytics",     label:"Analytics",     icon:BarChart2 },
   { id:"feedback",      label:"Feedback",      icon:Star },
-  { id:"earnings",      label:"Revenue",       icon:DollarSign, emoji:"💵" },
+  { id:"earnings",      label:"Revenue",       icon:DollarSign, emoji:"👑" },
 ];
 
 const FALLBACK_PLANS = ["All Plans","ai-chatbot","roadmap","portfolio","interview","flex","pro","core"];
@@ -51,6 +51,22 @@ function initialsFromEmail(email: string) {
 function Logo() {
   return (
     <img src={logoImg} alt="LearnWithSanu" className="h-9 w-auto object-contain flex-shrink-0"/>
+  );
+}
+
+/* ── Rupee nav icon ────────────────────────────────────────── */
+function RupeeNavIcon({ active, dark }: { active: boolean; dark: boolean }) {
+  const [hovered, setHovered] = useState(false);
+  const outerBg   = active ? "rgba(255,255,255,0.2)"  : hovered ? (dark ? "#1E1E20" : "#DDE0F5") : (dark ? "#2C2C2E" : "#ECEEF8");
+  const circleBg  = active ? "rgba(255,255,255,0.25)" : hovered ? (dark ? "#2C2C30" : "#adb4ff") : (dark ? "#3A3A3C" : "#C5CAFF");
+  const symbolCol = active ? "#ffffff"                : hovered ? (dark ? "#3D5AFE" : "#2405F5") : (dark ? "#8E8E93" : "#7986CB");
+  return (
+    <div onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
+      style={{ width:28, height:28, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, background:outerBg, transition:"background 0.2s" }}>
+      <div style={{ width:18, height:18, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", background:circleBg, transition:"background 0.2s" }}>
+        <span style={{ fontSize:11, fontWeight:500, lineHeight:1, color:symbolCol, fontFamily:"Arial,sans-serif", transition:"color 0.2s" }}>₹</span>
+      </div>
+    </div>
   );
 }
 
@@ -142,7 +158,7 @@ export default function App() {
   const [revenueUnlocked, setRevenueUnlocked] = useState(false);
   const [revenueGate,     setRevenueGate]     = useState(false);
 
-  const selfManagedHeader = tab === "sessions" || tab === "communication" || tab === "enrollment" || tab === "feedback";
+  const selfManagedHeader = tab === "sessions" || tab === "communication" || tab === "enrollment" || tab === "feedback" || tab === "earnings";
   const showFilters = tab !== "feedback";
 
   const loadPlanOptions = useCallback(() => {
@@ -280,9 +296,13 @@ export default function App() {
                       }
                     `}
                   >
-                    <div className={`size-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${active ? "bg-white/20" : "bg-muted group-hover:bg-accent"}`}>
-                      <Icon size={14} className={active ? "text-white" : "text-muted-foreground group-hover:text-primary"}/>
-                    </div>
+                    {id === "earnings" ? (
+                      <RupeeNavIcon active={active} dark={dark}/>
+                    ) : (
+                      <div className={`size-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${active ? "bg-white/20" : "bg-muted group-hover:bg-accent"}`}>
+                        <Icon size={14} className={active ? "text-white" : "text-muted-foreground group-hover:text-primary"}/>
+                      </div>
+                    )}
                     <span style={{ fontSize:13 }} className="font-medium flex-1">{label}</span>
                     {emoji && <span style={{ fontSize:14 }}>{emoji}</span>}
                     {active && <div className="size-1.5 rounded-full bg-white/60"/>}

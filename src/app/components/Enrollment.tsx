@@ -521,11 +521,10 @@ export function Enrollment({ year, plan, search = "", onStudentClick }: Props) {
               <option value="today">Today</option>
             </select>
           </div>
-          <div className="flex items-center gap-1.5 bg-primary/10 border border-primary/25 rounded-xl px-3 py-1.5"
-            style={{ boxShadow:"0 1px 4px rgba(26,42,241,0.10)" }}>
-            <CalendarClock size={13} className="text-primary flex-shrink-0"/>
+          <div className="flex items-center gap-1.5 bg-secondary border border-primary/20 rounded-xl px-3 py-1.5"
+            style={{ boxShadow:"0 1px 4px rgba(26,42,241,0.08)" }}>
             <input type="date" value={pickerDate} onChange={e => { setPickerDate(e.target.value); setPage(1); }}
-              className="bg-transparent outline-none text-primary font-semibold cursor-pointer" style={{ fontSize:12 }}/>
+              className="bg-transparent outline-none text-primary font-semibold cursor-pointer [color-scheme:light] dark:[color-scheme:dark]" style={{ fontSize:12 }}/>
             {pickerDate && (
               <button onClick={() => { setPickerDate(""); setPage(1); }}
                 className="text-muted-foreground hover:text-foreground transition-colors ml-0.5" style={{ fontSize:14, lineHeight:1 }}>
