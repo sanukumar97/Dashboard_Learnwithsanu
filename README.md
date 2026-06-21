@@ -1,4 +1,4 @@
-# CoachOps — Admin Dashboard
+# Learn with Sanu — Admin Dashboard
 
 Admin-only coaching dashboard for **LearnWithSanu IIT** coaching platform.
 
