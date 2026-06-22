@@ -24,7 +24,8 @@ const Tip = ({ active, payload, label }: any) => {
     <div className="bg-card border border-border rounded-2xl px-4 py-2.5" style={{ boxShadow: "var(--shadow-card)" }}>
       <p style={{ fontSize: 11 }} className="text-muted-foreground mb-1">{label}</p>
       {payload.map((p: any) => (
-        <p key={p.name} style={{ fontSize: 13, color: p.color || p.fill }} className="font-semibold">
+        <p key={p.name} style={{ fontSize: 13 }} className="font-semibold text-foreground">
+          <span style={{ color: p.color || p.fill }}>■ </span>
           {p.name}: ₹{Number(p.value).toLocaleString("en-IN")}
         </p>
       ))}

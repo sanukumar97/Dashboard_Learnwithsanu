@@ -275,10 +275,10 @@ export function Communications({ plan = "All Plans", search = "" }: { plan?: str
                 <p style={{ fontSize: 12 }} className="text-muted-foreground mt-0.5">Send mails to enrolled students</p>
               </div>
               <div className="flex items-center gap-3" style={{ fontSize: 12 }}>
-                <span className="text-muted-foreground">{mailStudents.length} S</span>
+                <span className="text-muted-foreground">{mailStudents.length} Students</span>
                 {pendingCount > 0 && (
                   <span className="px-2.5 py-1 rounded-full bg-amber-50 text-amber-600 border border-amber-200 font-medium dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800">
-                    {pendingCount} B
+                    {pendingCount} Bundle pending
                   </span>
                 )}
               </div>
