@@ -1,4 +1,4 @@
-import { AlertTriangle, CalendarDays, Clock, Mail, MessageCircle, Timer, X } from "lucide-react";
+import { AlertTriangle, CalendarDays, Clock, Mail, MessageCircle, MessageSquare, Timer, X } from "lucide-react";
 import { daysRemaining, isPlanExpired, type Student } from "../data/liveDashboard";
 import { StatusChip } from "./StatusChip";
 import { Avatar } from "./Avatar";
@@ -36,8 +36,9 @@ function DaysRemainingBadge({ days }: { days: number }) {
 }
 
 export function StudentProfile({ student, onClose }: Props) {
-  const days = daysRemaining(student);
-  const expired = isPlanExpired(student);
+  const hasExpiry = Boolean(student.planExpiryDate?.trim());
+  const days = hasExpiry ? daysRemaining(student) : Infinity;
+  const expired = hasExpiry && isPlanExpired(student);
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -90,19 +91,21 @@ export function StudentProfile({ student, onClose }: Props) {
             </div>
           </a>
 
-          <div className={`rounded-2xl border p-4 ${expired ? "border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/30" : "border-border bg-muted"}`}>
-            <div className="mb-2 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <CalendarDays size={13} className={expired ? "text-red-500" : "text-muted-foreground"} />
-                <p style={{ fontSize: 10 }} className="text-muted-foreground uppercase tracking-wide font-semibold">Plan Expiry</p>
+          {hasExpiry && (
+            <div className={`rounded-2xl border p-4 ${expired ? "border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/30" : "border-border bg-muted"}`}>
+              <div className="mb-2 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CalendarDays size={13} className={expired ? "text-red-500" : "text-muted-foreground"} />
+                  <p style={{ fontSize: 10 }} className="text-muted-foreground uppercase tracking-wide font-semibold">Plan Expiry</p>
+                </div>
+                <DaysRemainingBadge days={days} />
               </div>
-              <DaysRemainingBadge days={days} />
+              <p className="text-foreground font-bold" style={{ fontSize: 18 }}>{student.planExpiryDate}</p>
+              <p style={{ fontSize: 11 }} className="mt-1 text-muted-foreground">
+                Enrolled on {student.enrolledDate}
+              </p>
             </div>
-            <p className="text-foreground font-bold" style={{ fontSize: 18 }}>{student.planExpiryDate}</p>
-            <p style={{ fontSize: 11 }} className="mt-1 text-muted-foreground">
-              Enrolled on {student.enrolledDate}
-            </p>
-          </div>
+          )}
 
           {(student.sessionDate || student.sessionTime) && (
             <div className="rounded-2xl border border-border bg-secondary p-4">
@@ -117,7 +120,9 @@ export function StudentProfile({ student, onClose }: Props) {
           <div className="rounded-2xl bg-muted p-4">
             <p style={{ fontSize: 10 }} className="mb-1.5 text-muted-foreground uppercase tracking-wide font-semibold">Enrollment Details</p>
             <div className="space-y-2 text-sm text-foreground">
-              <p><strong>UTR:</strong> {student.utrNumber || "Not provided"}</p>
+              {!student.planSlug.startsWith("free-") && (
+                <p><strong>UTR:</strong> {student.utrNumber || "Not provided"}</p>
+              )}
               <p><strong>Referral:</strong> {student.referralSource || "Not provided"}</p>
               <p><strong>Target Colleges:</strong> {student.targetColleges.length ? student.targetColleges.join(", ") : "Not provided"}</p>
             </div>
@@ -130,12 +135,46 @@ export function StudentProfile({ student, onClose }: Props) {
             </div>
           )}
 
-          {student.remarks && (
-            <div className="rounded-2xl bg-muted p-4">
-              <p style={{ fontSize: 10 }} className="mb-1.5 text-muted-foreground uppercase tracking-wide font-semibold">Student Remarks</p>
-              <p style={{ fontSize: 13 }} className="text-foreground leading-relaxed">{student.remarks}</p>
-            </div>
-          )}
+          {student.remarks && (() => {
+            const isFreeRemarks = student.remarks.includes("Preferred time:");
+            if (isFreeRemarks) {
+              const timeMatch = student.remarks.match(/Preferred time:\s*(.+)/);
+              const commentMatch = student.remarks.match(/Comments:\s*([\s\S]*)/);
+              const preferredTime = timeMatch?.[1]?.trim() || "";
+              const comments = commentMatch?.[1]?.trim() || "";
+              return (
+                <div className="rounded-2xl bg-muted p-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <MessageSquare size={13} className="text-muted-foreground" />
+                    <p style={{ fontSize: 10 }} className="text-muted-foreground uppercase tracking-wide font-semibold">Student Preferences</p>
+                  </div>
+                  <div className="space-y-2.5">
+                    {preferredTime && (
+                      <div>
+                        <p style={{ fontSize: 10 }} className="text-muted-foreground mb-0.5">Preferred Time</p>
+                        <p style={{ fontSize: 13 }} className="text-foreground font-medium">{preferredTime}</p>
+                      </div>
+                    )}
+                    {comments && (
+                      <div>
+                        <p style={{ fontSize: 10 }} className="text-muted-foreground mb-0.5">Comments</p>
+                        <p style={{ fontSize: 13 }} className="text-foreground leading-relaxed">{comments}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            }
+            return (
+              <div className="rounded-2xl bg-muted p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <MessageSquare size={13} className="text-muted-foreground" />
+                  <p style={{ fontSize: 10 }} className="text-muted-foreground uppercase tracking-wide font-semibold">Student Remarks</p>
+                </div>
+                <p style={{ fontSize: 13 }} className="text-foreground leading-relaxed">{student.remarks}</p>
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>

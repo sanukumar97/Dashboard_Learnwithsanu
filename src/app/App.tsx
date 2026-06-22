@@ -16,7 +16,7 @@ import { Login }          from "./components/Login";
 import { StudentProfile } from "./components/StudentProfile";
 import { type Student }   from "./data/liveDashboard";
 import { fetchActivePlansAdmin } from "../services/planService";
-import { signOut } from "../services/authService";
+import { signOut, getSession, onAuthStateChange } from "../services/authService";
 
 type Tab = "sessions" | "communication" | "enrollment" | "analytics" | "earnings" | "feedback";
 
@@ -138,6 +138,7 @@ function RevenueGate({ onSuccess, onCancel }: { onSuccess: () => void; onCancel:
 }
 
 export default function App() {
+  const [authChecking,   setAuthChecking]   = useState(true);
   const [loggedIn,       setLoggedIn]       = useState(false);
   const [adminEmail,     setAdminEmail]     = useState("");
   const [dark,           setDark]           = useState(false);
@@ -155,6 +156,25 @@ export default function App() {
   const selfManagedHeader = tab === "sessions" || tab === "communication" || tab === "enrollment" || tab === "feedback" || tab === "earnings";
   const showFilters = tab !== "feedback";
 
+  // Restore session on mount so a page refresh doesn't force re-login
+  useEffect(() => {
+    getSession()
+      .then(session => {
+        if (session?.user?.email) {
+          setAdminEmail(session.user.email);
+          setLoggedIn(true);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setAuthChecking(false));
+
+    // Sign out if the session is revoked in another tab
+    const sub = onAuthStateChange(present => {
+      if (!present) { setLoggedIn(false); setAdminEmail(""); }
+    });
+    return () => sub.unsubscribe();
+  }, []);
+
   const loadPlanOptions = useCallback(() => {
     fetchActivePlansAdmin()
       .then(plans => {
@@ -165,6 +185,15 @@ export default function App() {
   }, []);
 
   useEffect(() => { loadPlanOptions(); }, [loadPlanOptions]);
+
+  if (authChecking) {
+    return (
+      <div className={dark?"dark":""} style={{ height:"100dvh", display:"flex", alignItems:"center", justifyContent:"center", background:"var(--background)" }}>
+        <div style={{ width:32, height:32, borderRadius:"50%", border:"3px solid var(--border)", borderTopColor:"var(--primary)", animation:"spin 0.7s linear infinite" }}/>
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      </div>
+    );
+  }
 
   if (!loggedIn) {
     return (

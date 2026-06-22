@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import {
   Send, Edit2, Plus, Mail, CheckCircle, XCircle, FileText,
   Archive, RotateCcw, Trash2, CalendarClock, X,
 } from "lucide-react";
 import { useLiveEnrollments } from "../hooks/useLiveEnrollments";
+import { fetchActivePlansAdmin, type AdminPlan } from "../../services/planService";
 import {
   fetchEmailTemplates, upsertEmailTemplate, archiveEmailTemplate,
   restoreEmailTemplate, deleteEmailTemplate, type EmailTemplate,
@@ -48,6 +50,7 @@ function preview(b: string) {
 export function Communications({ plan = "All Plans", search = "" }: { plan?: string; search?: string }) {
   const { students: allS } = useLiveEnrollments();
 
+  const [plans, setPlans]          = useState<AdminPlan[]>([]);
   const [tpls, setTpls]           = useState<EmailTemplate[]>([]);
   const [log, setLog]             = useState<MailLogEntry[]>([]);
   const [archivedLog, setArchLog] = useState<MailLogEntry[]>([]);
@@ -73,8 +76,9 @@ export function Communications({ plan = "All Plans", search = "" }: { plan?: str
     fetchArchivedMailLog().then(setArchLog).catch(console.error);
   };
 
-  // Load templates + mail log, subscribe to realtime
+  // Load templates + mail log + plans, subscribe to realtime
   useEffect(() => {
+    fetchActivePlansAdmin().then(setPlans).catch(console.error);
     fetchEmailTemplates().then(setTpls).catch(console.error);
     reloadLog();
 
@@ -116,7 +120,7 @@ export function Communications({ plan = "All Plans", search = "" }: { plan?: str
 
     setFlash(s.id);
     try {
-      await sendMail({
+      const result = await sendMail({
         enrollmentId: s.id,
         to:           s.email,
         toName:       s.name,
@@ -126,8 +130,17 @@ export function Communications({ plan = "All Plans", search = "" }: { plan?: str
         templateBody: tplEntry.body,
         templateName: tplEntry.name,
       });
+      if (!result.success) {
+        toast.error(`Mail to ${s.name} failed — check Mail Log`);
+        setFlash(null);
+        return;
+      }
+      toast.success(`Mail sent to ${s.name}`);
     } catch (e) {
       console.error("sendMail failed:", e);
+      toast.error("Mail send failed — please try again");
+      setFlash(null);
+      return;
     }
     setTimeout(() => setFlash(null), 2000);
     // allS will refresh via useLiveEnrollments realtime (mail_sent updated in DB by edge function)
@@ -138,7 +151,8 @@ export function Communications({ plan = "All Plans", search = "" }: { plan?: str
     const tplEntry = activeTpls.find(t => t.name === tplName) ?? activeTpls[0];
     const date     = schedDate[s.id] || "";
     const time     = schedTime[s.id] || "09:00";
-    if (!tplEntry || !date) return;
+    if (!tplEntry) { toast.error("Please select a template"); return; }
+    if (!date)     { toast.error("Please pick a date");       return; }
     try {
       await scheduleMail({
         enrollmentId:  s.id,
@@ -146,10 +160,19 @@ export function Communications({ plan = "All Plans", search = "" }: { plan?: str
         email:         s.email,
         templateName:  tplEntry.name,
         body:          tplEntry.body,
-        scheduledFor:  `${date}T${time}:00`,
+        scheduledFor:  new Date(`${date}T${time}:00`).toISOString(),
       });
-      setSelTpl(p => ({ ...p, [s.id]: "" }));
-    } catch(e) { console.error("scheduleMail failed:", e); }
+      // Reset all schedule fields and close the schedule form
+      setSelTpl(p  => ({ ...p, [s.id]: "" }));
+      setSchedTpl(p => ({ ...p, [s.id]: "" }));
+      setSchedDate(p => ({ ...p, [s.id]: "" }));
+      setSchedTime(p => ({ ...p, [s.id]: "09:00" }));
+      reloadLog();
+      toast.success(`Scheduled for ${new Date(`${date}T${time}:00`).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}`);
+    } catch(e) {
+      console.error("scheduleMail failed:", e);
+      toast.error("Failed to schedule mail — please try again");
+    }
   }
 
   function openEdit(id: string) {
@@ -200,23 +223,26 @@ export function Communications({ plan = "All Plans", search = "" }: { plan?: str
 
     setSendingNow(prev => new Set(prev).add(entry.id));
     try {
-      // Send the mail — pass skipLog so edge function does NOT insert a new mail_log row
-      // (the existing scheduled row will be updated in-place by the edge function)
       const result = await sendMail({
-        enrollmentId: entry.enrollmentId,
-        to:           entry.email,
-        toName:       entry.sentTo,
-        plan:         student?.plan ?? "",
-        sessionDate:  student?.sessionDate,
-        sessionTime:  student?.sessionTime,
-        templateBody: body,
-        templateName: entry.template,
-        grantAccess:  entry.template.startsWith("Bundle:"),
+        enrollmentId:  entry.enrollmentId,
+        to:            entry.email,
+        toName:        entry.sentTo,
+        plan:          student?.plan ?? "",
+        sessionDate:   student?.sessionDate,
+        sessionTime:   student?.sessionTime,
+        templateBody:  body,
+        templateName:  entry.template,
+        grantAccess:   entry.template.startsWith("Bundle:"),
         existingLogId: entry.id,
       });
-      if (!result.success) console.error("sendNow: mail failed");
+      if (result.success) {
+        toast.success(`Mail sent to ${entry.sentTo}`);
+      } else {
+        toast.error("Mail send failed — check Mail Log for details");
+      }
     } catch (e) {
       console.error("sendNow failed:", e);
+      toast.error("Mail send failed — please try again");
     } finally {
       setSendingNow(prev => { const n = new Set(prev); n.delete(entry.id); return n; });
     }
@@ -302,13 +328,22 @@ export function Communications({ plan = "All Plans", search = "" }: { plan?: str
                             <div className="flex items-center gap-3">
                               <Avatar name={s.name} color={s.avatarColor} size="sm" />
                               <span style={{ fontSize: 13 }} className="font-semibold text-foreground whitespace-nowrap">{s.name}</span>
+                              {plans.find(p => p.slug === s.planSlug)?.form_type === "free" && (
+                                <span className="px-1.5 py-0.5 rounded-md font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 whitespace-nowrap" style={{ fontSize: 10 }}>
+                                  Free
+                                </span>
+                              )}
                             </div>
                           </td>
                           <td className="px-6 py-3.5 text-muted-foreground" style={{ fontSize: 12 }}>{s.email}</td>
                           <td className="px-6 py-3.5 text-foreground" style={{ fontSize: 13 }}>{s.plan}</td>
                           <td className="px-6 py-3.5 text-muted-foreground whitespace-nowrap" style={{ fontSize: 12 }}>{s.enrolledDate}</td>
                           <td className="px-6 py-3.5">
-                            {s.mailSent ? (
+                            {plans.find(p => p.slug === s.planSlug)?.form_type === "free" ? (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800" style={{ fontSize: 11 }}>
+                                <CheckCircle size={11} /> Free
+                              </span>
+                            ) : s.mailSent ? (
                               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800" style={{ fontSize: 11 }}>
                                 <CheckCircle size={11} /> Granted
                               </span>

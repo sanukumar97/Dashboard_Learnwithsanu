@@ -46,6 +46,7 @@ interface PlanDraft {
   sessionLimit: string;
   gmeetLink: string;
   isActive: boolean;
+  formType: "paid" | "free";
 }
 
 const EMPTY_PLAN: PlanDraft = {
@@ -58,6 +59,7 @@ const EMPTY_PLAN: PlanDraft = {
   sessionLimit: "",
   gmeetLink: "",
   isActive: true,
+  formType: "paid",
 };
 
 function toDraft(plan?: AdminPlan | null): PlanDraft {
@@ -73,6 +75,7 @@ function toDraft(plan?: AdminPlan | null): PlanDraft {
     sessionLimit: plan.session_limit ?? "",
     gmeetLink: plan.gmeet_link ?? "",
     isActive: plan.is_active,
+    formType: (plan.form_type === "free" ? "free" : "paid"),
   };
 }
 
@@ -121,8 +124,9 @@ export function SetPlans({ onClose }: Props) {
     [enrollmentSlugs],
   );
 
-  const activePlans = plans.filter(plan => plan.is_active);
-  const archivedPlans = plans.filter(plan => !plan.is_active);
+  const activePaidPlans = plans.filter(p => p.is_active && p.form_type !== "free");
+  const activeFreePlans = plans.filter(p => p.is_active && p.form_type === "free");
+  const archivedPlans = plans.filter(p => !p.is_active);
 
   useEffect(() => {
     load().catch(() => {
@@ -204,6 +208,7 @@ export function SetPlans({ onClose }: Props) {
         session_limit: draft.sessionLimit.trim() || null,
         gmeet_link: draft.gmeetLink.trim() || null,
         is_active: draft.isActive,
+        form_type: draft.formType,
       });
 
       setPlanMessage(draft.id ? "Plan updated." : "Plan created.");
@@ -380,7 +385,7 @@ export function SetPlans({ onClose }: Props) {
             <div>
               <h2 className="text-foreground">Set Plans</h2>
               <p className="mt-0.5 text-muted-foreground" style={{ fontSize: 12 }}>
-                {activePlans.length} active · {archivedPlans.length} archived · {enrollmentSlugs.length} live enrollments
+                {activePaidPlans.length} paid · {activeFreePlans.length} free · {archivedPlans.length} archived · {enrollmentSlugs.length} enrollments
               </p>
             </div>
           </div>
@@ -412,7 +417,7 @@ export function SetPlans({ onClose }: Props) {
                       Plan Editor
                     </p>
                     <p className="text-muted-foreground" style={{ fontSize: 12 }}>
-                      Changes here are reflected in the enrollment form plan selection.
+                      Set form type to control which enrollment form shows this plan.
                     </p>
                   </div>
                   <button
@@ -502,6 +507,54 @@ export function SetPlans({ onClose }: Props) {
                     </Field>
                   </div>
 
+                  {/* Form Type toggle */}
+                  <div className="sm:col-span-2">
+                    <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Enrollment Form
+                    </span>
+                    <div className="flex gap-2 rounded-2xl border-2 border-border bg-muted/40 p-1.5">
+                      {(["paid", "free"] as const).map(type => {
+                        const selected = draft.formType === type;
+                        return (
+                          <button
+                            key={type}
+                            type="button"
+                            onClick={() => setDraft(d => ({ ...d, formType: type }))}
+                            className="flex-1 rounded-xl py-2.5 text-sm font-bold transition-all active:scale-95"
+                            style={{
+                              background: selected
+                                ? type === "paid" ? "var(--primary)" : "#059669"
+                                : "transparent",
+                              color: selected ? "white" : "var(--muted-foreground)",
+                              border: selected ? "2px solid transparent" : "2px solid transparent",
+                              boxShadow: selected ? "0 2px 10px rgba(0,0,0,0.18)" : "none",
+                              outline: !selected ? "none" : undefined,
+                            }}
+                            onMouseEnter={e => {
+                              if (!selected) {
+                                (e.currentTarget as HTMLButtonElement).style.background = type === "paid" ? "rgba(19,43,252,0.10)" : "rgba(5,150,105,0.10)";
+                                (e.currentTarget as HTMLButtonElement).style.color = type === "paid" ? "var(--primary)" : "#059669";
+                              }
+                            }}
+                            onMouseLeave={e => {
+                              if (!selected) {
+                                (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+                                (e.currentTarget as HTMLButtonElement).style.color = "var(--muted-foreground)";
+                              }
+                            }}
+                          >
+                            {type === "paid" ? "💳 Paid Enrollment" : "🎁 Free 1-on-1"}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="mt-1.5 text-xs text-muted-foreground">
+                      {draft.formType === "paid"
+                        ? "This plan appears in the paid enrollment form only."
+                        : "This plan appears in the free 1-on-1 booking form only."}
+                    </p>
+                  </div>
+
                   <div className="flex items-end">
                     <label className="flex items-center gap-2 text-sm text-foreground">
                       <input
@@ -546,11 +599,34 @@ export function SetPlans({ onClose }: Props) {
               <section className="rounded-2xl border border-border bg-card">
                 <div className="border-b border-border px-5 py-4">
                   <p className="font-semibold text-foreground" style={{ fontSize: 14 }}>
-                    Active Plans
+                    💳 Paid Form Plans
+                  </p>
+                  <p className="text-muted-foreground" style={{ fontSize: 12 }}>
+                    Shown in the paid enrollment form.
                   </p>
                 </div>
                 <PlanList
-                  plans={activePlans}
+                  plans={activePaidPlans}
+                  planCounts={planCounts}
+                  editingId={draft.id}
+                  onEdit={editPlan}
+                  onArchive={toggleArchive}
+                  onDelete={deletePlan}
+                  showDelete={false}
+                />
+              </section>
+
+              <section className="rounded-2xl border border-border bg-card">
+                <div className="border-b border-border px-5 py-4">
+                  <p className="font-semibold text-foreground" style={{ fontSize: 14 }}>
+                    🎁 Free 1-on-1 Plans
+                  </p>
+                  <p className="text-muted-foreground" style={{ fontSize: 12 }}>
+                    Shown in the free session booking form.
+                  </p>
+                </div>
+                <PlanList
+                  plans={activeFreePlans}
                   planCounts={planCounts}
                   editingId={draft.id}
                   onEdit={editPlan}
@@ -574,6 +650,7 @@ export function SetPlans({ onClose }: Props) {
                   onArchive={toggleArchive}
                   onDelete={deletePlan}
                   showDelete={true}
+                  showFormTypeBadge={true}
                 />
               </section>
 
@@ -876,6 +953,7 @@ function PlanList({
   onArchive,
   onDelete,
   showDelete = true,
+  showFormTypeBadge = false,
 }: {
   plans: AdminPlan[];
   planCounts: Record<string, number>;
@@ -884,6 +962,7 @@ function PlanList({
   onArchive: (plan: AdminPlan) => void | Promise<void>;
   onDelete: (plan: AdminPlan) => void | Promise<void>;
   showDelete?: boolean;
+  showFormTypeBadge?: boolean;
 }) {
   if (plans.length === 0) {
     return (
@@ -903,13 +982,22 @@ function PlanList({
         return (
           <div key={plan.id} className="flex items-center gap-3 px-5 py-4">
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <p className="truncate font-semibold text-foreground" style={{ fontSize: 14 }}>
                   {plan.name}
                 </p>
                 {plan.tag && (
                   <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                     {plan.tag}
+                  </span>
+                )}
+                {showFormTypeBadge && (
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                    plan.form_type === "free"
+                      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400"
+                      : "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400"
+                  }`}>
+                    {plan.form_type === "free" ? "🎁 Free" : "💳 Paid"}
                   </span>
                 )}
               </div>

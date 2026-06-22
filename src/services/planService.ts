@@ -11,6 +11,7 @@ export interface AdminPlan {
   session_limit: string | null;
   is_active: boolean;
   gmeet_link: string | null;
+  form_type: string;
 }
 
 export async function fetchAllPlansAdmin(): Promise<AdminPlan[]> {
@@ -34,7 +35,9 @@ export async function fetchActivePlansAdmin(): Promise<AdminPlan[]> {
 
 export async function upsertPlanAdmin(plan: Partial<AdminPlan> & { slug: string; name: string; price_paise: number }) {
   if (plan.id) {
-    const { error } = await supabase.from("plans").update({
+    // Only include form_type when explicitly provided — archive/restore calls don't pass it
+    // and we must not overwrite it with a default.
+    const patch: Record<string, unknown> = {
       slug: plan.slug,
       name: plan.name,
       price_paise: plan.price_paise,
@@ -44,7 +47,10 @@ export async function upsertPlanAdmin(plan: Partial<AdminPlan> & { slug: string;
       session_limit: plan.session_limit ?? null,
       is_active: plan.is_active ?? true,
       gmeet_link: plan.gmeet_link ?? null,
-    }).eq("id", plan.id);
+    };
+    if (plan.form_type !== undefined) patch.form_type = plan.form_type;
+
+    const { error } = await supabase.from("plans").update(patch).eq("id", plan.id);
     if (error) throw error;
     return;
   }
@@ -55,10 +61,11 @@ export async function upsertPlanAdmin(plan: Partial<AdminPlan> & { slug: string;
     price_paise: plan.price_paise,
     tag: plan.tag,
     display_order: plan.display_order ?? 0,
-    duration_weeks: plan.duration_weeks ?? 0,
-    session_limit: plan.session_limit ?? 0,
+    duration_weeks: plan.duration_weeks ?? null,
+    session_limit: plan.session_limit ?? null,
     is_active: plan.is_active ?? true,
     gmeet_link: plan.gmeet_link ?? null,
+    form_type: plan.form_type ?? "paid",
   });
   if (error) throw error;
 }

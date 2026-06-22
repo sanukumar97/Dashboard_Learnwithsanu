@@ -87,6 +87,12 @@
   --shadow-sm: 0 1px 6px 0 rgba(0,0,0,0.4);
 }
 
+/* Native date/time picker icon: invert in dark mode so it matches foreground */
+.dark input[type="date"]::-webkit-calendar-picker-indicator,
+.dark input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);

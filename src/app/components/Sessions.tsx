@@ -298,10 +298,17 @@ export function Sessions({ plan = "All Plans", search = "", onStudentClick }: Pr
                       <div className="flex items-center gap-2.5">
                         <Avatar name={s.name} color={s.avatarColor} size="sm" />
                         <div>
-                          <button onClick={() => onStudentClick?.(s)}
-                            className="font-semibold text-foreground hover:text-primary transition-colors text-left whitespace-nowrap" style={{ fontSize: 13 }}>
-                            {s.name}
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <button onClick={() => onStudentClick?.(s)}
+                              className="font-semibold text-foreground hover:text-primary transition-colors text-left whitespace-nowrap" style={{ fontSize: 13 }}>
+                              {s.name}
+                            </button>
+                            {plans.find(p => p.slug === s.planSlug)?.form_type === "free" && (
+                              <span className="px-1.5 py-0.5 rounded-md font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 whitespace-nowrap" style={{ fontSize: 10 }}>
+                                Free
+                              </span>
+                            )}
+                          </div>
                           <p style={{ fontSize: 11 }} className="text-muted-foreground">{s.plan}</p>
                           {(() => {
                             const planLimit = parseInt(plans.find(p => p.slug === s.planSlug)?.session_limit ?? "0", 10);
@@ -451,10 +458,17 @@ export function Sessions({ plan = "All Plans", search = "", onStudentClick }: Pr
                       <div className="flex items-center gap-2.5">
                         <Avatar name={s.name} color={s.avatarColor} size="sm" />
                         <div>
-                          <button onClick={() => onStudentClick?.(s)}
-                            className="font-semibold text-foreground hover:text-primary transition-colors text-left whitespace-nowrap" style={{ fontSize: 13 }}>
-                            {s.name}
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <button onClick={() => onStudentClick?.(s)}
+                              className="font-semibold text-foreground hover:text-primary transition-colors text-left whitespace-nowrap" style={{ fontSize: 13 }}>
+                              {s.name}
+                            </button>
+                            {plans.find(p => p.slug === s.planSlug)?.form_type === "free" && (
+                              <span className="px-1.5 py-0.5 rounded-md font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 whitespace-nowrap" style={{ fontSize: 10 }}>
+                                Free
+                              </span>
+                            )}
+                          </div>
                           <p style={{ fontSize: 11 }} className="text-muted-foreground">{s.plan}</p>
                           {(() => {
                             const planLimit = parseInt(plans.find(p => p.slug === s.planSlug)?.session_limit ?? "0", 10);
@@ -557,10 +571,17 @@ export function Sessions({ plan = "All Plans", search = "", onStudentClick }: Pr
                       <div className="flex items-center gap-2.5">
                         <Avatar name={s.name} color={s.avatarColor} size="sm" />
                         <div>
-                          <button onClick={() => onStudentClick?.(s)}
-                            className="font-semibold text-foreground hover:text-primary transition-colors text-left whitespace-nowrap" style={{ fontSize: 13 }}>
-                            {s.name}
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <button onClick={() => onStudentClick?.(s)}
+                              className="font-semibold text-foreground hover:text-primary transition-colors text-left whitespace-nowrap" style={{ fontSize: 13 }}>
+                              {s.name}
+                            </button>
+                            {plans.find(p => p.slug === s.planSlug)?.form_type === "free" && (
+                              <span className="px-1.5 py-0.5 rounded-md font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 whitespace-nowrap" style={{ fontSize: 10 }}>
+                                Free
+                              </span>
+                            )}
+                          </div>
                           <p style={{ fontSize: 11 }} className="text-muted-foreground">{s.plan}</p>
                           {(() => {
                             const planLimit = parseInt(plans.find(p => p.slug === s.planSlug)?.session_limit ?? "0", 10);

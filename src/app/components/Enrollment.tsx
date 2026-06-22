@@ -387,7 +387,7 @@ export function Enrollment({ year, plan, search = "", onStudentClick }: Props) {
   const [page,        setPage]       = useState(1);
   const [templates,   setTemplates]  = useState<EmailTemplate[]>([]);
   const [plans,       setPlans]      = useState<AdminPlan[]>([]);
-  const PER = 12;
+  const PER = 20;
 
   useEffect(() => {
     fetchEmailTemplates()
@@ -442,6 +442,80 @@ export function Enrollment({ year, plan, search = "", onStudentClick }: Props) {
     .filter(s => !q || s.name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q));
   const paged      = list.slice((page-1)*PER, page*PER);
   const totalPages = Math.max(1, Math.ceil(list.length / PER));
+
+  function CommentTooltip({ remarks }: { remarks: string }) {
+    const anchorRef = useRef<HTMLDivElement>(null);
+    const [pos, setPos] = useState<{ x: number; y: number; above: boolean } | null>(null);
+    const hasRemarks = Boolean(remarks?.trim());
+    const isFreeRemarks = remarks.includes("Preferred time:");
+
+    const timeMatch = isFreeRemarks ? remarks.match(/Preferred time:\s*(.+)/) : null;
+    const cmtMatch  = isFreeRemarks ? remarks.match(/Comments:\s*([\s\S]*)/)  : null;
+    const prefTime  = timeMatch?.[1]?.trim() || "";
+    const comment   = cmtMatch?.[1]?.trim()  || "";
+
+    const strokeColor = pos && hasRemarks ? "var(--primary)" : hasRemarks ? "var(--muted-foreground)" : "var(--border)";
+
+    const handleEnter = () => {
+      if (!hasRemarks || !anchorRef.current) return;
+      const r = anchorRef.current.getBoundingClientRect();
+      const above = window.innerHeight - r.bottom < 220;
+      setPos({ x: r.left + r.width / 2, y: above ? r.top : r.bottom, above });
+    };
+
+    return (
+      <div ref={anchorRef} className="flex items-center justify-center"
+        onMouseEnter={handleEnter}
+        onMouseLeave={() => setPos(null)}>
+        <svg width="20" height="20" viewBox="0 0 72 72" fill="none"
+          style={{ cursor: hasRemarks ? "pointer" : "default", opacity: hasRemarks ? 1 : 0.3, flexShrink: 0 }}>
+          <path
+            d="M36 10C21.64 10 10 20.745 10 34C10 40.09 12.48 45.63 16.56 49.74L13 62L25.8 58.56C28.97 59.82 32.4 60.5 36 60.5C50.36 60.5 62 49.755 62 36.25C62 22.745 50.36 10 36 10Z"
+            stroke={strokeColor} strokeWidth="3.8" strokeLinecap="round" strokeLinejoin="round"
+            style={{ transition: "stroke 0.2s ease" }}
+          />
+          <line x1="25" y1="30" x2="47" y2="30" stroke={strokeColor} strokeWidth="3.8" strokeLinecap="round" style={{ transition: "stroke 0.2s ease" }}/>
+          <line x1="25" y1="37" x2="47" y2="37" stroke={strokeColor} strokeWidth="3.8" strokeLinecap="round" style={{ transition: "stroke 0.2s ease" }}/>
+          <line x1="25" y1="44" x2="42" y2="44" stroke={strokeColor} strokeWidth="3.8" strokeLinecap="round" style={{ transition: "stroke 0.2s ease" }}/>
+        </svg>
+
+        {pos && hasRemarks && (
+          <div className="rounded-2xl bg-popover border border-border text-popover-foreground p-3.5 pointer-events-none w-56"
+            style={{
+              position: "fixed",
+              left: pos.x,
+              transform: "translateX(-50%)",
+              ...(pos.above ? { bottom: window.innerHeight - pos.y + 8 } : { top: pos.y + 8 }),
+              zIndex: 9999,
+              boxShadow: "0 8px 32px rgba(0,0,0,0.22)",
+              fontSize: 12,
+            }}>
+            <p className="font-bold text-muted-foreground uppercase tracking-wide mb-2" style={{ fontSize: 10 }}>
+              {isFreeRemarks ? "Student Preferences" : "Student Remarks"}
+            </p>
+            {isFreeRemarks ? (
+              <div className="space-y-2">
+                {prefTime && (
+                  <div>
+                    <p className="text-muted-foreground mb-0.5" style={{ fontSize: 10 }}>Preferred Time</p>
+                    <p className="font-medium text-foreground">{prefTime}</p>
+                  </div>
+                )}
+                {comment && (
+                  <div>
+                    <p className="text-muted-foreground mb-0.5" style={{ fontSize: 10 }}>Comments</p>
+                    <p className="leading-relaxed text-foreground">{comment}</p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="leading-relaxed text-foreground">{remarks}</p>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   const TH = ({ cols }: { cols: string[] }) => (
     <thead>
@@ -594,14 +668,16 @@ export function Enrollment({ year, plan, search = "", onStudentClick }: Props) {
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <TH cols={[
-                    "Student","Plan","Onboarded Date","Bundle Access","Payment",
+                    "Student","Plan","Onboarded Date","Bundle Access","Comment","Payment",
                     ...(tab === "pending" ? ["Approvals"] : []),
                     "Actions",
                   ]}/>
                   <tbody>
                     {paged.map(s => {
-                      const planLimit = parseInt(plans.find(p => p.slug === s.planSlug)?.session_limit ?? "0", 10);
+                      const planRecord = plans.find(p => p.slug === s.planSlug);
+                      const planLimit = parseInt(planRecord?.session_limit ?? "0", 10);
                       const allSessionsDone = planLimit > 0 && s.sessionsAttended >= planLimit;
+                      const isFree   = planRecord?.form_type === "free";
                       const pay      = paymentStatus(s);
 
                       return (
@@ -652,15 +728,24 @@ export function Enrollment({ year, plan, search = "", onStudentClick }: Props) {
 
                           {/* Bundle Access */}
                           <td className="px-5 py-3.5">
-                            {s.mailSent
-                              ? <StatusPill label="Granted" variant="green"/>
-                              : <StatusPill label="Pending" variant="gray"/>
+                            {isFree
+                              ? <StatusPill label="Free" variant="green"/>
+                              : s.mailSent
+                                ? <StatusPill label="Granted" variant="green"/>
+                                : <StatusPill label="Pending" variant="gray"/>
                             }
+                          </td>
+
+                          {/* Comment */}
+                          <td className="px-5 py-3.5">
+                            <CommentTooltip remarks={s.remarks} />
                           </td>
 
                           {/* Payment */}
                           <td className="px-5 py-3.5">
-                            {pay === "Paid"
+                            {isFree
+                              ? <span className="flex items-center gap-1.5 text-emerald-600 font-medium" style={{ fontSize:12 }}><CheckCircle size={12}/> Free</span>
+                              : pay === "Paid"
                               ? <span className="flex items-center gap-1.5 text-emerald-600 font-medium" style={{ fontSize:12 }}><CheckCircle size={12}/> Paid</span>
                               : pay === "Pending"
                               ? <span className="flex items-center gap-1.5 text-muted-foreground" style={{ fontSize:12 }}><Clock size={12}/> Pending</span>
@@ -778,11 +863,33 @@ export function Enrollment({ year, plan, search = "", onStudentClick }: Props) {
                 <div className="flex items-center gap-1">
                   <button onClick={() => setPage(p=>Math.max(1,p-1))} disabled={page===1}
                     className="size-8 rounded-full border border-border flex items-center justify-center hover:bg-muted disabled:opacity-30 transition-colors text-muted-foreground">‹</button>
-                  {Array.from({length:Math.min(5,totalPages)},(_,i)=>i+1).map(p=>(
-                    <button key={p} onClick={()=>setPage(p)}
-                      className={`size-8 rounded-full flex items-center justify-center transition-all ${p===page?"bg-primary text-white font-bold":"border border-border text-muted-foreground hover:bg-muted"}`}
-                      style={{ fontSize:12 }}>{p}</button>
-                  ))}
+                  {(() => {
+                    const window = 2;
+                    const start = Math.max(1, Math.min(page - window, totalPages - window * 2));
+                    const end   = Math.min(totalPages, start + window * 2);
+                    const pages = Array.from({ length: end - start + 1 }, (_, i) => start + i);
+                    return (
+                      <>
+                        {start > 1 && (
+                          <>
+                            <button onClick={() => setPage(1)} className="size-8 rounded-full border border-border text-muted-foreground hover:bg-muted transition-colors" style={{ fontSize:12 }}>1</button>
+                            {start > 2 && <span className="text-muted-foreground px-0.5" style={{ fontSize:12 }}>…</span>}
+                          </>
+                        )}
+                        {pages.map(p => (
+                          <button key={p} onClick={() => setPage(p)}
+                            className={`size-8 rounded-full flex items-center justify-center transition-all ${p===page?"bg-primary text-white font-bold":"border border-border text-muted-foreground hover:bg-muted"}`}
+                            style={{ fontSize:12 }}>{p}</button>
+                        ))}
+                        {end < totalPages && (
+                          <>
+                            {end < totalPages - 1 && <span className="text-muted-foreground px-0.5" style={{ fontSize:12 }}>…</span>}
+                            <button onClick={() => setPage(totalPages)} className="size-8 rounded-full border border-border text-muted-foreground hover:bg-muted transition-colors" style={{ fontSize:12 }}>{totalPages}</button>
+                          </>
+                        )}
+                      </>
+                    );
+                  })()}
                   <button onClick={()=>setPage(p=>Math.min(totalPages,p+1))} disabled={page===totalPages}
                     className="size-8 rounded-full border border-border flex items-center justify-center hover:bg-muted disabled:opacity-30 transition-colors text-muted-foreground">›</button>
                 </div>
