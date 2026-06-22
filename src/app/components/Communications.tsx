@@ -158,25 +158,33 @@ export function Communications({ plan = "All Plans", search = "" }: { plan?: str
   }
   function openNew() { setEditId("new"); setEB(""); setEN(""); setED(""); setIsNew(true); }
 
+  const reloadTpls = () => fetchEmailTemplates().then(setTpls).catch(console.error);
+
   async function saveTpl() {
-    try {
-      await upsertEmailTemplate({
-        id: isNew ? undefined : editId!,
-        name: editName, description: editDesc, body: editBody,
-      });
-    } catch (e) { console.error("saveTpl failed:", e); }
+    const today = new Date().toISOString().slice(0, 10);
+    if (isNew) {
+      setTpls(prev => [...prev, { id: `tmp-${Date.now()}`, name: editName, description: editDesc, body: editBody, archived: false, lastEdited: today }]);
+    } else {
+      setTpls(prev => prev.map(t => t.id === editId ? { ...t, name: editName, description: editDesc, body: editBody, lastEdited: today } : t));
+    }
     setEditId(null);
-    // realtime will refresh tpls
+    try {
+      await upsertEmailTemplate({ id: isNew ? undefined : editId!, name: editName, description: editDesc, body: editBody });
+    } catch (e) { console.error("saveTpl failed:", e); }
+    reloadTpls();
   }
 
   async function handleArchiveTpl(id: string) {
-    try { await archiveEmailTemplate(id); } catch (e) { console.error(e); }
+    setTpls(prev => prev.map(t => t.id === id ? { ...t, archived: true } : t));
+    try { await archiveEmailTemplate(id); } catch (e) { console.error(e); reloadTpls(); }
   }
   async function handleRestoreTpl(id: string) {
-    try { await restoreEmailTemplate(id); } catch (e) { console.error(e); }
+    setTpls(prev => prev.map(t => t.id === id ? { ...t, archived: false } : t));
+    try { await restoreEmailTemplate(id); } catch (e) { console.error(e); reloadTpls(); }
   }
   async function handleDeleteTpl(id: string) {
-    try { await deleteEmailTemplate(id); } catch (e) { console.error(e); }
+    setTpls(prev => prev.filter(t => t.id !== id));
+    try { await deleteEmailTemplate(id); } catch (e) { console.error(e); reloadTpls(); }
   }
   async function handleRetry(entry: MailLogEntry) {
     try { await markMailLogSent(entry.id); } catch (e) { console.error(e); }

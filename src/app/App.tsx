@@ -23,10 +23,10 @@ type Tab = "sessions" | "communication" | "enrollment" | "analytics" | "earnings
 const NAV: { id: Tab; label: string; icon: any; emoji?: string }[] = [
   { id:"sessions",      label:"Sessions",      icon:CalendarClock },
   { id:"communication", label:"Communication", icon:Mail },
-  { id:"enrollment",    label:"Onboarding",    icon:ClipboardList },
   { id:"analytics",     label:"Analytics",     icon:BarChart2 },
   { id:"feedback",      label:"Feedback",      icon:Star },
   { id:"earnings",      label:"Revenue",       icon:DollarSign, emoji:"👑" },
+  { id:"enrollment",    label:"Onboarding",    icon:ClipboardList },
 ];
 
 const FALLBACK_PLANS = ["All Plans","ai-chatbot","roadmap","portfolio","interview","flex","pro","core"];
@@ -55,17 +55,11 @@ function Logo() {
 }
 
 /* ── Rupee nav icon ────────────────────────────────────────── */
-function RupeeNavIcon({ active, dark }: { active: boolean; dark: boolean }) {
-  const [hovered, setHovered] = useState(false);
-  const outerBg   = active ? "rgba(255,255,255,0.2)"  : hovered ? (dark ? "#1E1E20" : "#DDE0F5") : (dark ? "#2C2C2E" : "#ECEEF8");
-  const circleBg  = active ? "rgba(255,255,255,0.25)" : hovered ? (dark ? "#2C2C30" : "#adb4ff") : (dark ? "#3A3A3C" : "#C5CAFF");
-  const symbolCol = active ? "#ffffff"                : hovered ? (dark ? "#3D5AFE" : "#2405F5") : (dark ? "#8E8E93" : "#7986CB");
+function RupeeNavIcon({ active }: { active: boolean }) {
   return (
-    <div onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
-      style={{ width:28, height:28, borderRadius:8, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0, background:outerBg, transition:"background 0.2s" }}>
-      <div style={{ width:18, height:18, borderRadius:"50%", display:"flex", alignItems:"center", justifyContent:"center", background:circleBg, transition:"background 0.2s" }}>
-        <span style={{ fontSize:11, fontWeight:500, lineHeight:1, color:symbolCol, fontFamily:"Arial,sans-serif", transition:"color 0.2s" }}>₹</span>
-      </div>
+    <div className={`size-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${active ? "bg-white/20" : "bg-muted group-hover:bg-accent"}`}>
+      <span style={{ fontSize:13, fontWeight:400, lineHeight:1, fontFamily:"Arial,sans-serif" }}
+        className={active ? "text-white" : "text-muted-foreground group-hover:text-primary"}>₹</span>
     </div>
   );
 }
@@ -297,7 +291,7 @@ export default function App() {
                     `}
                   >
                     {id === "earnings" ? (
-                      <RupeeNavIcon active={active} dark={dark}/>
+                      <RupeeNavIcon active={active}/>
                     ) : (
                       <div className={`size-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors ${active ? "bg-white/20" : "bg-muted group-hover:bg-accent"}`}>
                         <Icon size={14} className={active ? "text-white" : "text-muted-foreground group-hover:text-primary"}/>
