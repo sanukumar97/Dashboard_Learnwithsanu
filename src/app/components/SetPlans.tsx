@@ -115,6 +115,9 @@ export function SetPlans({ onClose }: Props) {
   const [bannerImageUrl, setBannerImageUrl] = useState<string | null>(null);
   const [bannerMessage, setBannerMessage] = useState<string | null>(null);
   const [savingBanner, setSavingBanner] = useState(false);
+  const [sessionNote, setSessionNote] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
+  const [noteMessage, setNoteMessage] = useState<string | null>(null);
   const [uploadingBannerImg, setUploadingBannerImg] = useState(false);
   const qrRef = useRef<HTMLInputElement>(null);
   const bannerImgRef = useRef<HTMLInputElement>(null);
@@ -168,6 +171,7 @@ export function SetPlans({ onClose }: Props) {
           pills:      loadedBanner.pills,
         });
         setBannerImageUrl(loadedBanner.image_url);
+        setSessionNote(loadedBanner.session_note ?? "");
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load dashboard settings.");
@@ -287,6 +291,21 @@ export function SetPlans({ onClose }: Props) {
       setError(err instanceof Error ? err.message : "Could not save payment settings.");
     } finally {
       setSavingPayment(false);
+    }
+  }
+
+  async function saveSessionNote() {
+    if (!bannerSettings) return;
+    setSavingNote(true);
+    setNoteMessage(null);
+    try {
+      await updateBannerSettingsAdmin(bannerSettings.id, { session_note: sessionNote.trim() || null });
+      setNoteMessage("Saved!");
+      setTimeout(() => setNoteMessage(null), 2500);
+    } catch (err) {
+      setNoteMessage("Failed to save.");
+    } finally {
+      setSavingNote(false);
     }
   }
 
@@ -634,6 +653,36 @@ export function SetPlans({ onClose }: Props) {
                   onDelete={deletePlan}
                   showDelete={false}
                 />
+              </section>
+
+              {/* ── Free Form Session Note ─────────────────────── */}
+              <section className="rounded-2xl border border-border bg-card">
+                <div className="border-b border-border px-5 py-4">
+                  <p className="font-semibold text-foreground" style={{ fontSize: 14 }}>📌 Free Form Note</p>
+                  <p className="text-muted-foreground" style={{ fontSize: 12 }}>
+                    Shown as a note below the session plans in the free enrollment form.
+                  </p>
+                </div>
+                <div className="px-5 py-4 flex flex-col gap-3">
+                  <textarea
+                    rows={4}
+                    value={sessionNote}
+                    onChange={e => setSessionNote(e.target.value)}
+                    placeholder="e.g. Default session is 10 minutes. Extend to 12 minutes by sharing a short video review…"
+                    className="w-full rounded-xl border border-border bg-muted px-3.5 py-2.5 text-foreground outline-none focus:ring-2 focus:ring-primary resize-none"
+                    style={{ fontSize: 13 }}
+                  />
+                  <div className="flex items-center gap-3">
+                    <button onClick={saveSessionNote} disabled={savingNote}
+                      className="px-4 py-2 rounded-xl bg-primary text-white font-semibold hover:opacity-90 disabled:opacity-50 transition-all"
+                      style={{ fontSize: 13 }}>
+                      {savingNote ? "Saving…" : "Save Note"}
+                    </button>
+                    {noteMessage && (
+                      <span className="text-emerald-600 font-medium" style={{ fontSize: 13 }}>{noteMessage}</span>
+                    )}
+                  </div>
+                </div>
               </section>
 
               <section className="rounded-2xl border border-border bg-card">

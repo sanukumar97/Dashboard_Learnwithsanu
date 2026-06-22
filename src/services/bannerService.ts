@@ -7,12 +7,13 @@ export interface BannerSettings {
   subtitle: string;
   pills: string[];
   image_url: string | null;
+  session_note: string | null;
 }
 
 export async function fetchBannerSettingsAdmin(): Promise<BannerSettings | null> {
   const { data, error } = await supabase
     .from("banner_settings")
-    .select("id, badge_text, headline, subtitle, pills, image_url")
+    .select("id, badge_text, headline, subtitle, pills, image_url, session_note")
     .limit(1)
     .maybeSingle();
   if (error) throw error;

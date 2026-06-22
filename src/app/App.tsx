@@ -186,6 +186,13 @@ export default function App() {
 
   useEffect(() => { loadPlanOptions(); }, [loadPlanOptions]);
 
+  // Sync dark class + color-scheme to <html> so native browser controls (date/time picker icons) adapt
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle("dark", dark);
+    root.style.colorScheme = dark ? "dark" : "light";
+  }, [dark]);
+
   if (authChecking) {
     return (
       <div className={dark?"dark":""} style={{ height:"100dvh", display:"flex", alignItems:"center", justifyContent:"center", background:"var(--background)" }}>
