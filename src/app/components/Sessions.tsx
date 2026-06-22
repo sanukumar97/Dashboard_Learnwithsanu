@@ -184,10 +184,10 @@ export function Sessions({ plan = "All Plans", search = "", onStudentClick }: Pr
     completed: completed.length,
   };
 
-  const TABS: { id: STab; label: string }[] = [
-    { id: "scheduled", label: "Scheduled Sessions" },
-    { id: "pending",   label: "Pending Sessions" },
-    { id: "completed", label: "Completed" },
+  const TABS: { id: STab; label: string; short: string }[] = [
+    { id: "scheduled", label: "Scheduled Sessions", short: "Scheduled" },
+    { id: "pending",   label: "Pending Sessions",   short: "Pending" },
+    { id: "completed", label: "Completed",           short: "Done" },
   ];
 
   function getS(id: string) { return students.find(s => s.id === id)!; }
@@ -612,18 +612,18 @@ export function Sessions({ plan = "All Plans", search = "", onStudentClick }: Pr
 
       {/* ── STICKY HEADER ─────────────────────────────────────── */}
       <div
-        className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-3 px-5 py-4 bg-card border-b border-border"
+        className="sticky top-0 z-20 flex flex-col gap-2 px-5 py-3 bg-card border-b border-border sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:py-4"
         style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}
       >
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-3 min-w-0">
           <h2 className="text-foreground flex-shrink-0">Sessions</h2>
-
-          <div className="flex items-center bg-muted rounded-2xl p-1 gap-0.5">
+          <div className="flex items-center bg-muted rounded-2xl p-1 gap-0.5 overflow-x-auto min-w-0 flex-1" style={{ scrollbarWidth:"none" }}>
             {TABS.map(t => (
               <button key={t.id} onClick={() => setActiveTab(t.id)}
-                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl transition-all font-medium ${activeTab === t.id ? "bg-primary text-white shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all font-medium ${activeTab === t.id ? "bg-primary text-white shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
                 style={{ fontSize: 12 }}>
-                {t.label}
+                <span className="hidden sm:inline">{t.label}</span>
+                <span className="sm:hidden">{t.short}</span>
                 <span className={`min-w-[20px] h-5 rounded-full flex items-center justify-center px-1 font-semibold ${activeTab === t.id ? "bg-white/25 text-white" : "bg-muted-foreground/20 text-muted-foreground"}`}
                   style={{ fontSize: 10 }}>
                   {counts[t.id]}
@@ -634,7 +634,7 @@ export function Sessions({ plan = "All Plans", search = "", onStudentClick }: Pr
         </div>
 
         {activeTab !== "pending" && (
-          <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
+          <div className="flex items-center gap-2">
             <div className="flex items-center gap-1.5 bg-secondary border border-primary/20 rounded-xl px-3 py-1.5"
               style={{ boxShadow: "0 1px 4px rgba(26,42,241,0.08)" }}>
               <ChevronDown size={12} className="text-primary flex-shrink-0" />
@@ -646,14 +646,14 @@ export function Sessions({ plan = "All Plans", search = "", onStudentClick }: Pr
                 <option value="month">This Month</option>
               </select>
             </div>
-            <div className="flex items-center gap-1.5 bg-secondary border border-primary/20 rounded-xl px-3 py-1.5"
+            <div className="flex items-center gap-1.5 bg-secondary border border-primary/20 rounded-xl px-3 py-1.5 flex-1 sm:flex-none"
               style={{ boxShadow: "0 1px 4px rgba(26,42,241,0.08)" }}>
               <input type="date" value={filterDate}
                 onChange={e => setFilterDate(e.target.value)}
-                className="bg-transparent outline-none text-primary font-semibold cursor-pointer [color-scheme:light] dark:[color-scheme:dark]" style={{ fontSize: 12 }} />
+                className="bg-transparent outline-none text-primary font-semibold cursor-pointer [color-scheme:light] dark:[color-scheme:dark] min-w-[120px] w-full" style={{ fontSize: 12 }} />
               {filterDate && (
                 <button onClick={() => setFilterDate("")}
-                  className="text-muted-foreground hover:text-foreground transition-colors ml-0.5" style={{ fontSize: 14, lineHeight: 1 }}>
+                  className="text-muted-foreground hover:text-foreground transition-colors ml-0.5 flex-shrink-0" style={{ fontSize: 14, lineHeight: 1 }}>
                   ×
                 </button>
               )}

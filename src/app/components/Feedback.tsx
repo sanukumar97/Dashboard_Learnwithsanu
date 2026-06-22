@@ -271,7 +271,7 @@ export function Feedback() {
               </button>
 
               {filterOpen && (
-                <div className="absolute right-0 top-full mt-2 z-30 w-72 bg-white dark:bg-card rounded-2xl border border-[#E8ECF0] dark:border-border shadow-xl p-4 space-y-4">
+                <div className="absolute left-0 sm:left-auto sm:right-0 top-full mt-2 z-30 w-[min(288px,calc(100vw-2rem))] bg-white dark:bg-card rounded-2xl border border-[#E8ECF0] dark:border-border shadow-xl p-4 space-y-4">
                   <div className="flex items-center justify-between">
                     <span className="text-[12px] font-bold text-gray-800 dark:text-white flex items-center gap-1.5">
                       <CalendarDays size={13} className="text-[#4A6CF7]" /> Date Range
@@ -293,7 +293,7 @@ export function Feedback() {
                         value={dateFrom}
                         max={dateTo || undefined}
                         onChange={e => setDateFrom(e.target.value)}
-                        className="w-full text-[11px] border border-[#E8ECF0] rounded-xl px-3 py-2 outline-none focus:border-[#4A6CF7] focus:ring-2 focus:ring-[#4A6CF7]/10 transition-all dark:bg-card dark:text-white"
+                        className="w-full text-[11px] border border-[#E8ECF0] rounded-xl px-3 py-2 outline-none focus:border-[#4A6CF7] focus:ring-2 focus:ring-[#4A6CF7]/10 transition-all dark:bg-card dark:text-white [color-scheme:light] dark:[color-scheme:dark]"
                       />
                     </div>
                     <div className="space-y-1">
@@ -303,7 +303,7 @@ export function Feedback() {
                         value={dateTo}
                         min={dateFrom || undefined}
                         onChange={e => setDateTo(e.target.value)}
-                        className="w-full text-[11px] border border-[#E8ECF0] rounded-xl px-3 py-2 outline-none focus:border-[#4A6CF7] focus:ring-2 focus:ring-[#4A6CF7]/10 transition-all dark:bg-card dark:text-white"
+                        className="w-full text-[11px] border border-[#E8ECF0] rounded-xl px-3 py-2 outline-none focus:border-[#4A6CF7] focus:ring-2 focus:ring-[#4A6CF7]/10 transition-all dark:bg-card dark:text-white [color-scheme:light] dark:[color-scheme:dark]"
                       />
                     </div>
                   </div>

@@ -246,7 +246,7 @@ export function Earnings({ year, plan }: { year: string; plan: string }) {
                     value={dateFrom}
                     max={dateTo || undefined}
                     onChange={e => setDateFrom(e.target.value)}
-                    className="w-full text-[11px] border border-border rounded-xl px-3 py-2 outline-none focus:border-[#3B5BFF] focus:ring-2 focus:ring-[#3B5BFF]/10 transition-all bg-card text-foreground"
+                    className="w-full text-[11px] border border-border rounded-xl px-3 py-2 outline-none focus:border-[#3B5BFF] focus:ring-2 focus:ring-[#3B5BFF]/10 transition-all bg-card text-foreground [color-scheme:light] dark:[color-scheme:dark]"
                   />
                 </div>
                 <div className="space-y-1">
@@ -256,7 +256,7 @@ export function Earnings({ year, plan }: { year: string; plan: string }) {
                     value={dateTo}
                     min={dateFrom || undefined}
                     onChange={e => setDateTo(e.target.value)}
-                    className="w-full text-[11px] border border-border rounded-xl px-3 py-2 outline-none focus:border-[#3B5BFF] focus:ring-2 focus:ring-[#3B5BFF]/10 transition-all bg-card text-foreground"
+                    className="w-full text-[11px] border border-border rounded-xl px-3 py-2 outline-none focus:border-[#3B5BFF] focus:ring-2 focus:ring-[#3B5BFF]/10 transition-all bg-card text-foreground [color-scheme:light] dark:[color-scheme:dark]"
                   />
                 </div>
               </div>

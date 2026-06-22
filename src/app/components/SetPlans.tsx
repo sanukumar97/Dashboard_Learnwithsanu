@@ -429,7 +429,7 @@ export function SetPlans({ onClose }: Props) {
                     <input
                       value={draft.slug}
                       onChange={event => setDraft(current => ({ ...current, slug: event.target.value }))}
-                      placeholder="pro"
+                      placeholder="Enter slug… e.g. pro"
                       className="field-input"
                     />
                   </Field>
@@ -438,7 +438,7 @@ export function SetPlans({ onClose }: Props) {
                     <input
                       value={draft.name}
                       onChange={event => setDraft(current => ({ ...current, name: event.target.value }))}
-                      placeholder="Pro Bundle"
+                      placeholder="Enter plan name… e.g. Pro Bundle"
                       className="field-input"
                     />
                   </Field>
@@ -447,7 +447,7 @@ export function SetPlans({ onClose }: Props) {
                     <input
                       value={draft.price}
                       onChange={event => setDraft(current => ({ ...current, price: event.target.value }))}
-                      placeholder="7999"
+                      placeholder="Enter price in INR… e.g. 7999"
                       className="field-input"
                     />
                   </Field>
@@ -456,7 +456,7 @@ export function SetPlans({ onClose }: Props) {
                     <input
                       value={draft.tag}
                       onChange={event => setDraft(current => ({ ...current, tag: event.target.value }))}
-                      placeholder="Best Value"
+                      placeholder="Enter tag… e.g. Best Value"
                       className="field-input"
                     />
                   </Field>
@@ -552,6 +552,7 @@ export function SetPlans({ onClose }: Props) {
                 <PlanList
                   plans={activePlans}
                   planCounts={planCounts}
+                  editingId={draft.id}
                   onEdit={editPlan}
                   onArchive={toggleArchive}
                   onDelete={deletePlan}
@@ -568,6 +569,7 @@ export function SetPlans({ onClose }: Props) {
                 <PlanList
                   plans={archivedPlans}
                   planCounts={planCounts}
+                  editingId={draft.id}
                   onEdit={editPlan}
                   onArchive={toggleArchive}
                   onDelete={deletePlan}
@@ -840,6 +842,15 @@ export function SetPlans({ onClose }: Props) {
           color: var(--foreground);
           padding: 0.7rem 0.95rem;
           outline: none;
+          transition: border-color 0.15s;
+        }
+        .field-input::placeholder {
+          color: var(--muted-foreground);
+          opacity: 0.5;
+          font-style: italic;
+        }
+        .field-input:focus {
+          border-color: var(--primary);
         }
       `}</style>
     </div>
@@ -860,6 +871,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 function PlanList({
   plans,
   planCounts,
+  editingId,
   onEdit,
   onArchive,
   onDelete,
@@ -867,6 +879,7 @@ function PlanList({
 }: {
   plans: AdminPlan[];
   planCounts: Record<string, number>;
+  editingId?: string;
   onEdit: (plan: AdminPlan) => void;
   onArchive: (plan: AdminPlan) => void | Promise<void>;
   onDelete: (plan: AdminPlan) => void | Promise<void>;
@@ -885,6 +898,7 @@ function PlanList({
       {plans.map(plan => {
         const linkedCount = planCounts[plan.slug] ?? 0;
         const archived = !plan.is_active;
+        const isEditing = plan.id === editingId;
 
         return (
           <div key={plan.id} className="flex items-center gap-3 px-5 py-4">
@@ -917,10 +931,14 @@ function PlanList({
             <div className="flex items-center gap-2">
               <button
                 onClick={() => onEdit(plan)}
-                className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted"
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all active:scale-95 active:opacity-70 ${
+                  isEditing
+                    ? "border-primary bg-primary/20 text-primary"
+                    : "border-border text-muted-foreground hover:border-primary/60 hover:bg-primary/20 hover:text-primary"
+                }`}
               >
                 <Pencil size={12} />
-                Edit
+                {isEditing ? "Editing…" : "Edit"}
               </button>
 
               <button
@@ -928,7 +946,11 @@ function PlanList({
                   const result = onArchive(plan);
                   if (result instanceof Promise) void result;
                 }}
-                className="inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted"
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all active:scale-95 active:opacity-70 ${
+                  archived
+                    ? "border-emerald-300 text-emerald-600 hover:bg-emerald-100 hover:border-emerald-400 dark:border-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-900/50"
+                    : "border-amber-300 text-amber-600 hover:bg-amber-100 hover:border-amber-400 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-900/50"
+                }`}
               >
                 {archived ? <RotateCcw size={12} /> : <Archive size={12} />}
                 {archived ? "Restore" : "Archive"}
@@ -940,7 +962,7 @@ function PlanList({
                     const result = onDelete(plan);
                     if (result instanceof Promise) void result;
                   }}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-red-200 px-3 py-1.5 text-xs font-medium text-red-500 hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-950/30"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-red-300 px-3 py-1.5 text-xs font-medium text-red-500 transition-all hover:bg-red-100 hover:border-red-400 hover:text-red-600 active:scale-95 active:opacity-70 dark:border-red-800 dark:hover:bg-red-900/50"
                 >
                   <Trash2 size={12} />
                   Delete

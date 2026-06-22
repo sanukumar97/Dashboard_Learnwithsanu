@@ -234,7 +234,7 @@ export default function App() {
             </button>
 
             {/* Year selector — in header right per reference */}
-            <div className="flex items-center gap-1.5 border border-border rounded-xl px-3 py-1.5 bg-muted ml-1">
+            <div className="hidden sm:flex items-center gap-1.5 border border-border rounded-xl px-3 py-1.5 bg-muted ml-1">
               <Calendar size={13} className="text-muted-foreground flex-shrink-0"/>
               <select
                 value={year} onChange={e => setYear(e.target.value)}
@@ -267,7 +267,7 @@ export default function App() {
             style={{ width:220 }}
           >
             {/* Nav items */}
-            <nav className="flex flex-col gap-0.5 px-3 pt-4 flex-1">
+            <nav className="flex flex-col gap-0.5 px-3 pt-[68px] lg:pt-4 flex-1">
               {NAV.map(({ id, label, icon: Icon, emoji }) => {
                 const active = tab === id;
                 return (
@@ -340,15 +340,15 @@ export default function App() {
             {/* Plan filter bar — only when filters relevant, year is now in header */}
             {showFilters && (
               <div
-                className="flex-shrink-0 flex flex-wrap items-center gap-2 px-5 py-3 bg-card border-b border-border"
-                style={{ boxShadow:"0 1px 4px rgba(0,0,0,0.04)" }}
+                className="flex-shrink-0 flex items-center gap-2 px-5 py-3 bg-card border-b border-border overflow-x-auto"
+                style={{ boxShadow:"0 1px 4px rgba(0,0,0,0.04)", scrollbarWidth:"none" }}
               >
                 {planOptions.map(p => (
                   <button
                     key={p}
                     onClick={() => setPlan(p)}
                     className={`
-                      px-4 py-1.5 rounded-full transition-all font-medium border
+                      flex-shrink-0 px-4 py-1.5 rounded-full transition-all font-medium border
                       ${plan === p
                         ? "bg-primary text-white border-primary shadow-sm"
                         : "bg-transparent text-muted-foreground border-border hover:border-primary/50 hover:text-foreground"
