@@ -1,8 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
-  ChevronDown, Copy, CheckCircle, AlertCircle, RotateCcw,
+  Copy, CheckCircle, AlertCircle, RotateCcw,
   Clock, MessageCircle, Mail, Save, Video, Send, X,
 } from "lucide-react";
+import { CalendarPicker } from "./ui/CalendarPicker";
+import { RangeDropdown } from "./ui/RangeDropdown";
+
 import { useLiveEnrollments } from "../hooks/useLiveEnrollments";
 import {
   updateEnrollmentSession, updateEnrollmentNotes,
@@ -27,7 +30,7 @@ function fmtDate(d: string) {
 
 interface SE { studentId: string; date: string; time: string; notes: string; gmeetLink: string; completed: boolean; }
 type STab = "scheduled" | "pending" | "completed";
-type SessionRange = "all" | "today" | "week" | "month";
+type SessionRange = "all" | "today" | "week" | "month" | "custom";
 
 function matchesRange(dateStr: string, range: SessionRange): boolean {
   if (range === "all") return true;
@@ -165,7 +168,7 @@ export function Sessions({ plan = "All Plans", search = "", onStudentClick }: Pr
 
   const applyFilters = (list: SE[]) => {
     let out = list;
-    if (sessionRange !== "all") out = out.filter(se => se.date && matchesRange(se.date, sessionRange));
+    if (sessionRange !== "all" && sessionRange !== "custom") out = out.filter(se => se.date && matchesRange(se.date, sessionRange));
     if (filterDate) out = out.filter(se => se.date === filterDate);
     return out;
   };
@@ -185,9 +188,9 @@ export function Sessions({ plan = "All Plans", search = "", onStudentClick }: Pr
   };
 
   const TABS: { id: STab; label: string; short: string }[] = [
-    { id: "scheduled", label: "Scheduled Sessions", short: "Scheduled" },
-    { id: "pending",   label: "Pending Sessions",   short: "Pending" },
-    { id: "completed", label: "Completed",           short: "Done" },
+    { id: "scheduled", label: "Scheduled Sessions", short: "Scheduled Sessions" },
+    { id: "pending",   label: "Pending Sessions",   short: "Pending Sessions" },
+    { id: "completed", label: "Completed",           short: "Completed" },
   ];
 
   function getS(id: string) { return students.find(s => s.id === id)!; }
@@ -633,20 +636,24 @@ export function Sessions({ plan = "All Plans", search = "", onStudentClick }: Pr
 
       {/* ── STICKY HEADER ─────────────────────────────────────── */}
       <div
-        className="sticky top-0 z-20 flex flex-col gap-2 px-5 py-3 bg-card border-b border-border sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:py-4"
-        style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}
+        className="sticky top-0 z-20 flex flex-wrap items-center justify-between gap-2 px-5 py-3.5 bg-card border-b border-border"
+        style={{ boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}
       >
-        <div className="flex items-center gap-3 min-w-0">
+        {/* Left group: heading + tab pills — flex-wrap makes heading wrap above tabs on mobile */}
+        <div className="flex items-center gap-3 flex-wrap">
           <h2 className="text-foreground flex-shrink-0">Sessions</h2>
-          <div className="flex items-center bg-muted rounded-2xl p-1 gap-0.5 overflow-x-auto min-w-0 flex-1" style={{ scrollbarWidth:"none" }}>
+          <div className="flex items-center gap-1 bg-muted/50 rounded-full px-1 py-1"
+            style={{ border: "1px solid var(--border)" }}>
             {TABS.map(t => (
               <button key={t.id} onClick={() => setActiveTab(t.id)}
-                className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-all font-medium ${activeTab === t.id ? "bg-primary text-white shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
-                style={{ fontSize: 12 }}>
-                <span className="hidden sm:inline">{t.label}</span>
-                <span className="sm:hidden">{t.short}</span>
-                <span className={`min-w-[20px] h-5 rounded-full flex items-center justify-center px-1 font-semibold ${activeTab === t.id ? "bg-white/25 text-white" : "bg-muted-foreground/20 text-muted-foreground"}`}
-                  style={{ fontSize: 10 }}>
+                className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full transition-all duration-150 font-medium ${
+                  activeTab === t.id ? "bg-primary text-white shadow-sm" : "text-muted-foreground hover:text-foreground"
+                }`}
+                style={{ fontSize: 13 }}>
+                {t.short}
+                <span className={`min-w-[22px] h-5 rounded-full flex items-center justify-center px-1.5 font-bold ${
+                  activeTab === t.id ? "bg-white/20 text-white" : "bg-muted-foreground/20 text-muted-foreground"
+                }`} style={{ fontSize: 11 }}>
                   {counts[t.id]}
                 </span>
               </button>
@@ -654,27 +661,32 @@ export function Sessions({ plan = "All Plans", search = "", onStudentClick }: Pr
           </div>
         </div>
 
+        {/* Right group: filter controls — w-full on mobile forces to new row */}
         {activeTab !== "pending" && (
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5 bg-secondary border border-primary/20 rounded-xl px-3 py-1.5"
-              style={{ boxShadow: "0 1px 4px rgba(26,42,241,0.08)" }}>
-              <ChevronDown size={12} className="text-primary flex-shrink-0" />
-              <select value={sessionRange} onChange={e => setSessionRange(e.target.value as SessionRange)}
-                className="bg-transparent outline-none text-primary font-semibold appearance-none cursor-pointer" style={{ fontSize: 12 }}>
-                <option value="all">All</option>
-                <option value="today">Today</option>
-                <option value="week">This Week</option>
-                <option value="month">This Month</option>
-              </select>
-            </div>
-            <div className="flex items-center gap-1.5 bg-secondary border border-primary/20 rounded-xl px-3 py-1.5 flex-1 sm:flex-none"
-              style={{ boxShadow: "0 1px 4px rgba(26,42,241,0.08)" }}>
-              <input type="date" value={filterDate}
-                onChange={e => setFilterDate(e.target.value)}
-                className="bg-transparent outline-none text-primary font-semibold cursor-pointer [color-scheme:light] dark:[color-scheme:dark] min-w-[120px] w-full" style={{ fontSize: 12 }} />
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            {/* Range dropdown */}
+            <RangeDropdown
+              value={sessionRange}
+              onChange={v => setSessionRange(v as SessionRange)}
+              options={[
+                { value: "all",    label: "All" },
+                { value: "today",  label: "Today" },
+                { value: "week",   label: "This Week" },
+                { value: "month",  label: "This Month" },
+                { value: "custom", label: "Custom" },
+              ]}
+            />
+
+            {/* Date picker */}
+            <div className="flex items-center gap-1 flex-1 sm:flex-none">
+              <CalendarPicker
+                value={filterDate}
+                onChange={setFilterDate}
+                align="right"
+              />
               {filterDate && (
                 <button onClick={() => setFilterDate("")}
-                  className="text-muted-foreground hover:text-foreground transition-colors ml-0.5 flex-shrink-0" style={{ fontSize: 14, lineHeight: 1 }}>
+                  className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0" style={{ fontSize: 16, lineHeight: 1 }}>
                   ×
                 </button>
               )}

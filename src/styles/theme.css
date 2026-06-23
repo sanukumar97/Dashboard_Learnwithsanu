@@ -43,6 +43,16 @@
   --sidebar-ring: #1A2AF1;
   --shadow-card: 0 1px 8px 0 rgba(0,0,0,0.06), 0 0 0 1px rgba(0,0,0,0.04);
   --shadow-sm: 0 1px 4px 0 rgba(0,0,0,0.05);
+
+  /* ── Calendar picker palette ── */
+  --cal-bg:           #E5E8FF;
+  --cal-border:       #b0b0f0;
+  --cal-text:         #2c2ca8;
+  --cal-text-muted:   rgba(44,44,168,0.45);
+  --cal-selected-bg:  #3a3adb;
+  --cal-selected-fg:  #ffffff;
+  --cal-hover:        rgba(58,58,219,0.08);
+  --cal-active:       rgba(58,58,219,0.14);
 }
 
 /* iOS true-black dark */
@@ -86,6 +96,16 @@
   --sidebar-ring: #4D5EFF;
   --shadow-card: 0 2px 20px 0 rgba(0,0,0,0.65);
   --shadow-sm: 0 1px 6px 0 rgba(0,0,0,0.4);
+
+  /* ── Calendar picker palette ── */
+  --cal-bg:           #1e1e3a;
+  --cal-border:       #3a3a6a;
+  --cal-text:         #7878f0;
+  --cal-text-muted:   rgba(120,120,240,0.45);
+  --cal-selected-bg:  #6666e8;
+  --cal-selected-fg:  #ffffff;
+  --cal-hover:        rgba(120,120,240,0.12);
+  --cal-active:       rgba(120,120,240,0.22);
 }
 
 

@@ -2,8 +2,9 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import {
   Download, Filter, MessageSquare,
-  ChevronLeft, ChevronRight, Star, X, CalendarDays, Copy, Check,
+  ChevronLeft, ChevronRight, Star, X, Copy, Check,
 } from "lucide-react";
+import { CalendarPicker } from "./ui/CalendarPicker";
 
 const C = {
   blue:        "#4A6CF7",
@@ -233,16 +234,16 @@ export function Feedback() {
   return (
     <div className="flex flex-col min-h-0">
 
-      {/* ── Sticky header ── */}
+      {/* ── Sticky header — form capsules only ── */}
       <div className="sticky top-0 z-20 bg-card border-b border-border"
         style={{ boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
-        <div className="px-5 py-3 flex items-center justify-between gap-3 flex-wrap">
-          {/* Form capsules */}
-          <div className="flex items-center gap-1.5 flex-wrap">
+        <div className="px-5 py-3">
+          {/* Form capsules — single row, horizontally scrollable */}
+          <div className="flex items-center gap-1.5 overflow-x-auto" style={{ scrollbarWidth: "none" }}>
             {FORMS.map(f => (
               <button key={f.id}
                 onClick={() => { setSelectedForm(f.id); setPage(1); }}
-                className={`px-4 py-1.5 rounded-full font-medium border transition-all ${
+                className={`flex-shrink-0 px-4 py-1.5 rounded-full font-medium border transition-all ${
                   selectedForm === f.id
                     ? "bg-primary text-white border-primary shadow-sm"
                     : "bg-transparent text-muted-foreground border-border hover:border-primary/50 hover:text-foreground"
@@ -252,33 +253,41 @@ export function Feedback() {
               </button>
             ))}
           </div>
-          {/* Filter + Export */}
-          <div className="flex items-center gap-2">
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto p-5 space-y-4" style={{ fontFamily: "Inter, sans-serif" }}>
+
+        {/* Page heading + Filter + Export */}
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-foreground font-bold" style={{ fontSize: 20 }}>Feedback</h2>
+            <p style={{ fontSize: 12 }} className="text-muted-foreground mt-0.5">Student ratings and course reviews</p>
+          </div>
+          {/* Filter + Export side by side */}
+          <div className="flex items-center gap-2 flex-shrink-0">
             {/* Filter button + dropdown */}
             <div className="relative" ref={filterRef}>
               <button
                 onClick={() => setFilterOpen(o => !o)}
                 className={`flex items-center gap-1.5 border rounded-xl px-3 py-1.5 text-[11px] font-medium transition-colors ${
                   isFiltered
-                    ? "border-[#4A6CF7] bg-[#EEF1FE] text-[#4A6CF7]"
-                    : "border-[#E8ECF0] text-gray-500 hover:bg-gray-50"
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border text-muted-foreground hover:bg-muted"
                 }`}>
                 <Filter size={11} />
-                Filter
+                <span className="hidden sm:inline">Filter</span>
                 {isFiltered && (
-                  <span className="w-4 h-4 rounded-full bg-[#4A6CF7] text-white text-[8px] font-bold flex items-center justify-center">1</span>
+                  <span className="w-4 h-4 rounded-full bg-primary text-white flex items-center justify-center font-bold" style={{ fontSize: 8 }}>1</span>
                 )}
               </button>
 
               {filterOpen && (
-                <div className="absolute left-0 sm:left-auto sm:right-0 top-full mt-2 z-30 w-[min(288px,calc(100vw-2rem))] bg-white dark:bg-card rounded-2xl border border-[#E8ECF0] dark:border-border shadow-xl p-4 space-y-4">
+                <div className="absolute right-0 top-full mt-2 z-30 w-[min(288px,calc(100vw-2rem))] bg-card rounded-2xl border border-border shadow-xl p-4 space-y-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-[12px] font-bold text-gray-800 dark:text-white flex items-center gap-1.5">
-                      <CalendarDays size={13} className="text-[#4A6CF7]" /> Date Range
-                    </span>
+                    <span className="text-[12px] font-bold text-foreground">Date Range</span>
                     {isFiltered && (
-                      <button
-                        onClick={() => { setDateFrom(""); setDateTo(""); setAppliedFrom(""); setAppliedTo(""); setPage(1); }}
+                      <button onClick={() => { setDateFrom(""); setDateTo(""); setAppliedFrom(""); setAppliedTo(""); setPage(1); }}
                         className="text-[10px] text-red-500 hover:text-red-600 font-medium flex items-center gap-0.5">
                         <X size={9} /> Clear
                       </button>
@@ -287,37 +296,23 @@ export function Feedback() {
 
                   <div className="space-y-2.5">
                     <div className="space-y-1">
-                      <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">From</label>
-                      <input
-                        type="date"
-                        value={dateFrom}
-                        max={dateTo || undefined}
-                        onChange={e => setDateFrom(e.target.value)}
-                        className="w-full text-[11px] border border-[#E8ECF0] rounded-xl px-3 py-2 outline-none focus:border-[#4A6CF7] focus:ring-2 focus:ring-[#4A6CF7]/10 transition-all dark:bg-card dark:text-white [color-scheme:light] dark:[color-scheme:dark]"
-                      />
+                      <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">From</label>
+                      <CalendarPicker value={dateFrom} onChange={setDateFrom} compact placeholder="dd/mm/yyyy" align="right" />
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">To</label>
-                      <input
-                        type="date"
-                        value={dateTo}
-                        min={dateFrom || undefined}
-                        onChange={e => setDateTo(e.target.value)}
-                        className="w-full text-[11px] border border-[#E8ECF0] rounded-xl px-3 py-2 outline-none focus:border-[#4A6CF7] focus:ring-2 focus:ring-[#4A6CF7]/10 transition-all dark:bg-card dark:text-white [color-scheme:light] dark:[color-scheme:dark]"
-                      />
+                      <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">To</label>
+                      <CalendarPicker value={dateTo} onChange={setDateTo} compact placeholder="dd/mm/yyyy" align="right" />
                     </div>
                   </div>
 
                   <div className="flex gap-2 pt-1">
-                    <button
-                      onClick={() => { setFilterOpen(false); }}
-                      className="flex-1 py-2 rounded-xl text-[11px] font-medium border border-[#E8ECF0] text-gray-500 hover:bg-gray-50 transition-colors">
+                    <button onClick={() => setFilterOpen(false)}
+                      className="flex-1 py-2 rounded-xl text-[11px] font-medium border border-border text-muted-foreground hover:bg-muted transition-colors">
                       Cancel
                     </button>
-                    <button
-                      onClick={() => { setAppliedFrom(dateFrom); setAppliedTo(dateTo); setPage(1); setFilterOpen(false); }}
+                    <button onClick={() => { setAppliedFrom(dateFrom); setAppliedTo(dateTo); setPage(1); setFilterOpen(false); }}
                       className="flex-1 py-2 rounded-xl text-[11px] font-medium text-white transition-colors"
-                      style={{ background: C.blue }}>
+                      style={{ background: "var(--primary)" }}>
                       Apply
                     </button>
                   </div>
@@ -329,19 +324,10 @@ export function Feedback() {
             <button
               onClick={exportCSV}
               disabled={filteredRows.length === 0}
-              className="flex items-center gap-1.5 border border-[#E8ECF0] rounded-xl px-3 py-1.5 text-[11px] font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
-              <Download size={11} /> Export CSV
+              className="flex items-center gap-1.5 border border-border rounded-xl px-3 py-1.5 text-[11px] font-medium text-muted-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+              <Download size={11} /><span className="hidden sm:inline">Export CSV</span>
             </button>
           </div>
-        </div>
-      </div>
-
-      <div className="flex-1 overflow-y-auto p-5 space-y-4" style={{ fontFamily: "Inter, sans-serif" }}>
-
-        {/* Page heading */}
-        <div>
-          <h2 className="text-foreground font-bold" style={{ fontSize: 20 }}>Feedback</h2>
-          <p style={{ fontSize: 12 }} className="text-muted-foreground mt-0.5">Student ratings and course reviews</p>
         </div>
 
         {/* Total Responses KPI card */}

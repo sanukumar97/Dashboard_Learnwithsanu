@@ -3,6 +3,9 @@ import {
   Send, X, CalendarClock, CheckCircle, Clock,
   AlertTriangle, ChevronDown, Trash2,
 } from "lucide-react";
+
+import { CalendarPicker } from "./ui/CalendarPicker";
+import { RangeDropdown } from "./ui/RangeDropdown";
 import { toast } from "sonner";
 import { useLiveEnrollments } from "../hooks/useLiveEnrollments";
 import {
@@ -22,7 +25,7 @@ import { Avatar } from "./Avatar";
 
 interface Props { year: string; plan: string; search?: string; onStudentClick?: (s: Student) => void; }
 type EnrollTab = "enrolled" | "pending" | "deleted";
-type DateRange = "today" | "week" | "month" | "all";
+type DateRange = "today" | "week" | "month" | "all" | "custom";
 
 function today() { return new Date().toISOString().split("T")[0]; }
 
@@ -414,7 +417,7 @@ export function Enrollment({ year, plan, search = "", onStudentClick }: Props) {
 
   const dateFilter = (arr: Student[]) => {
     if (pickerDate) return arr.filter(s => s.enrolledDate === pickerDate);
-    return dateRange === "all" ? arr : arr.filter(s => matchesDateRange(s.enrolledDate, dateRange));
+    return (dateRange === "all" || dateRange === "custom") ? arr : arr.filter(s => matchesDateRange(s.enrolledDate, dateRange));
   };
 
   // Correct tri-tab split using raw DB fields
@@ -584,24 +587,29 @@ export function Enrollment({ year, plan, search = "", onStudentClick }: Props) {
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
-          <div className="flex items-center gap-1.5 bg-secondary border border-primary/20 rounded-xl px-3 py-1.5"
-            style={{ boxShadow:"0 1px 4px rgba(26,42,241,0.08)" }}>
-            <ChevronDown size={12} className="text-primary flex-shrink-0"/>
-            <select value={dateRange} onChange={e => { setDateRange(e.target.value as DateRange); setPage(1); }}
-              className="bg-transparent outline-none text-primary font-semibold appearance-none cursor-pointer" style={{ fontSize:12 }}>
-              <option value="all">All</option>
-              <option value="week">This Week</option>
-              <option value="month">This Month</option>
-              <option value="today">Today</option>
-            </select>
-          </div>
-          <div className="flex items-center gap-1.5 bg-secondary border border-primary/20 rounded-xl px-3 py-1.5 flex-1 sm:flex-none"
-            style={{ boxShadow:"0 1px 4px rgba(26,42,241,0.08)" }}>
-            <input type="date" value={pickerDate} onChange={e => { setPickerDate(e.target.value); setPage(1); }}
-              className="bg-transparent outline-none text-primary font-semibold cursor-pointer [color-scheme:light] dark:[color-scheme:dark] min-w-[120px] w-full" style={{ fontSize:12 }}/>
+          {/* Range dropdown */}
+          <RangeDropdown
+            value={dateRange}
+            onChange={v => { setDateRange(v as DateRange); setPage(1); }}
+            options={[
+              { value: "all",    label: "All" },
+              { value: "today",  label: "Today" },
+              { value: "week",   label: "This Week" },
+              { value: "month",  label: "This Month" },
+              { value: "custom", label: "Custom" },
+            ]}
+          />
+
+          {/* Date picker */}
+          <div className="flex items-center gap-1 flex-1 sm:flex-none">
+            <CalendarPicker
+              value={pickerDate}
+              onChange={v => { setPickerDate(v); setPage(1); }}
+              align="right"
+            />
             {pickerDate && (
               <button onClick={() => { setPickerDate(""); setPage(1); }}
-                className="text-muted-foreground hover:text-foreground transition-colors ml-0.5 flex-shrink-0" style={{ fontSize:14, lineHeight:1 }}>
+                className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0" style={{ fontSize:16, lineHeight:1 }}>
                 ×
               </button>
             )}
