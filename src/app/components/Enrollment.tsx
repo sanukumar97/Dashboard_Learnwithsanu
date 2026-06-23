@@ -571,14 +571,14 @@ export function Enrollment({ year, plan, search = "", onStudentClick }: Props) {
               { id:"deleted"  as EnrollTab, label:"Deleted",  count:deletedCount },
             ]).map(t => (
               <button key={t.id} onClick={() => { setTab(t.id); setPage(1); }}
-                className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full transition-all duration-150 font-medium ${
+                className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-4 py-1.5 rounded-full transition-all duration-150 font-medium ${
                   tab === t.id ? "bg-primary text-white shadow-sm" : "text-muted-foreground hover:text-foreground"
                 }`}
-                style={{ fontSize:13 }}>
+                style={{ fontSize:12 }}>
                 {t.label}
-                <span className={`min-w-[22px] h-5 rounded-full flex items-center justify-center px-1.5 font-bold ${
+                <span className={`min-w-[18px] h-[18px] sm:min-w-[22px] sm:h-5 rounded-full flex items-center justify-center px-1 sm:px-1.5 font-bold ${
                   tab === t.id ? "bg-white/20 text-white" : "bg-muted-foreground/20 text-muted-foreground"
-                }`} style={{ fontSize:11 }}>
+                }`} style={{ fontSize:10 }}>
                   {t.count}
                 </span>
               </button>

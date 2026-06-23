@@ -118,9 +118,9 @@ export function Feedback() {
   useEffect(() => {
     if (!filterOpen) return;
     function handleClick(e: MouseEvent) {
-      if (filterRef.current && !filterRef.current.contains(e.target as Node)) {
-        setFilterOpen(false);
-      }
+      const t = e.target as HTMLElement;
+      if (t.closest?.("[data-calendar-panel]")) return;
+      if (filterRef.current && !filterRef.current.contains(t)) setFilterOpen(false);
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);

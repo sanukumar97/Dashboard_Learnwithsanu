@@ -910,12 +910,12 @@ export function SetPlans({ onClose }: Props) {
                 {/* Image upload */}
                 <div className="px-5 pb-5">
                   <div className="rounded-2xl border border-dashed border-border p-4">
-                    <div className="mb-3 flex items-center justify-between gap-3">
-                      <div>
+                    <div className="mb-3 flex items-start justify-between gap-3 flex-wrap">
+                      <div className="min-w-0">
                         <p className="font-medium text-foreground" style={{ fontSize: 13 }}>Banner Image (right side)</p>
                         <p className="text-muted-foreground" style={{ fontSize: 12 }}>Shown as a thumbnail on the right of the banner.</p>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <input ref={bannerImgRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
                           onChange={e => { onBannerImgUpload(e).catch(() => {}); }} />
                         <button onClick={() => bannerImgRef.current?.click()}

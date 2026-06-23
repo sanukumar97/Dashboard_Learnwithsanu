@@ -646,14 +646,14 @@ export function Sessions({ plan = "All Plans", search = "", onStudentClick }: Pr
             style={{ border: "1px solid var(--border)" }}>
             {TABS.map(t => (
               <button key={t.id} onClick={() => setActiveTab(t.id)}
-                className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full transition-all duration-150 font-medium ${
+                className={`flex items-center gap-1.5 px-2.5 sm:px-4 py-1.5 rounded-full transition-all duration-150 font-medium ${
                   activeTab === t.id ? "bg-primary text-white shadow-sm" : "text-muted-foreground hover:text-foreground"
                 }`}
-                style={{ fontSize: 13 }}>
+                style={{ fontSize: 12 }}>
                 {t.short}
-                <span className={`min-w-[22px] h-5 rounded-full flex items-center justify-center px-1.5 font-bold ${
+                <span className={`min-w-[18px] h-[18px] sm:min-w-[22px] sm:h-5 rounded-full flex items-center justify-center px-1 sm:px-1.5 font-bold ${
                   activeTab === t.id ? "bg-white/20 text-white" : "bg-muted-foreground/20 text-muted-foreground"
-                }`} style={{ fontSize: 11 }}>
+                }`} style={{ fontSize: 10 }}>
                   {counts[t.id]}
                 </span>
               </button>

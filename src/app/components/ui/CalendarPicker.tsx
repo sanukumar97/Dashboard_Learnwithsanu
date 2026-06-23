@@ -121,6 +121,7 @@ export function CalendarPicker({ value, onChange, align = "left", compact = fals
   const panel = open && panelPos && createPortal(
     <div
       ref={panelRef}
+      data-calendar-panel="true"
       style={{
         position: "fixed",
         top: panelPos.top,
