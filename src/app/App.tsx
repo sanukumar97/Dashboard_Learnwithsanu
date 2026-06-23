@@ -16,6 +16,7 @@ import { Login }          from "./components/Login";
 import { StudentProfile } from "./components/StudentProfile";
 import { type Student }   from "./data/liveDashboard";
 import { fetchActivePlansAdmin } from "../services/planService";
+import { fetchEnrollmentsAdmin } from "../services/enrollmentService";
 import { signOut, getSession, onAuthStateChange } from "../services/authService";
 
 type Tab = "sessions" | "communication" | "enrollment" | "analytics" | "earnings" | "feedback";
@@ -176,10 +177,19 @@ export default function App() {
   }, []);
 
   const loadPlanOptions = useCallback(() => {
-    fetchActivePlansAdmin()
-      .then(plans => {
-        const slugs = plans.map(p => p.slug);
-        setPlanOptions(["All Plans", ...Array.from(new Set(slugs))]);
+    Promise.all([fetchActivePlansAdmin(), fetchEnrollmentsAdmin()])
+      .then(([activePlans, enrollments]) => {
+        // Only keep plans that have at least one approved (admin-approved) student
+        const approvedSlugs = new Set(
+          enrollments
+            .filter(e => e.dbStatus === "submitted" && !!e.adminApprovedAt)
+            .map(e => e.planSlug)
+            .filter(Boolean)
+        );
+        const slugs = activePlans
+          .map(p => p.slug)
+          .filter(slug => approvedSlugs.has(slug));
+        setPlanOptions(slugs.length ? ["All Plans", ...slugs] : FALLBACK_PLANS);
       })
       .catch(() => setPlanOptions(FALLBACK_PLANS));
   }, []);
