@@ -189,7 +189,7 @@ export default function App() {
         const slugs = activePlans
           .map(p => p.slug)
           .filter(slug => approvedSlugs.has(slug));
-        setPlanOptions(slugs.length ? ["All Plans", ...slugs] : FALLBACK_PLANS);
+        setPlanOptions(["All Plans", ...slugs]);
       })
       .catch(() => setPlanOptions(FALLBACK_PLANS));
   }, []);
