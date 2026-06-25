@@ -15,7 +15,7 @@ import { SetPlans }       from "./components/SetPlans";
 import { Login }          from "./components/Login";
 import { StudentProfile } from "./components/StudentProfile";
 import { type Student }   from "./data/liveDashboard";
-import { fetchActivePlansAdmin } from "../services/planService";
+import { fetchAllPlansAdmin } from "../services/planService";
 import { fetchEnrollmentsAdmin } from "../services/enrollmentService";
 import { signOut, getSession, onAuthStateChange } from "../services/authService";
 
@@ -177,7 +177,7 @@ export default function App() {
   }, []);
 
   const loadPlanOptions = useCallback(() => {
-    Promise.all([fetchActivePlansAdmin(), fetchEnrollmentsAdmin()])
+    Promise.all([fetchAllPlansAdmin(), fetchEnrollmentsAdmin()])
       .then(([activePlans, enrollments]) => {
         // Only keep plans that have at least one approved (admin-approved) student
         const approvedSlugs = new Set(
