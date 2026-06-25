@@ -384,7 +384,10 @@ export function Enrollment({ year, plan, search = "", onStudentClick }: Props) {
   const { students, loading, error, refresh } = useLiveEnrollments();
   const [tab,         setTab]        = useState<EnrollTab>("enrolled");
   const [dateRange,   setDateRange]  = useState<DateRange>("all");
-  const [pickerDate,  setPickerDate] = useState("");
+  const [customFrom,  setCustomFrom] = useState("");
+  const [customTo,    setCustomTo]   = useState("");
+  const [appliedFrom, setAppliedFrom] = useState("");
+  const [appliedTo,   setAppliedTo]   = useState("");
   const [mailTarget,  setMailTarget] = useState<Student|null>(null);
   const [schedTarget, setSchedTarget]= useState<Student|null>(null);
   const [page,        setPage]       = useState(1);
@@ -416,8 +419,17 @@ export function Enrollment({ year, plan, search = "", onStudentClick }: Props) {
   });
 
   const dateFilter = (arr: Student[]) => {
-    if (pickerDate) return arr.filter(s => s.enrolledDate === pickerDate);
-    return (dateRange === "all" || dateRange === "custom") ? arr : arr.filter(s => matchesDateRange(s.enrolledDate, dateRange));
+    if (dateRange === "all") return arr;
+    if (dateRange === "custom") {
+      if (!appliedFrom && !appliedTo) return arr;
+      return arr.filter(s => {
+        const d = new Date(s.enrolledDate);
+        if (appliedFrom && d < new Date(appliedFrom + "T00:00:00")) return false;
+        if (appliedTo   && d > new Date(appliedTo   + "T23:59:59")) return false;
+        return true;
+      });
+    }
+    return arr.filter(s => matchesDateRange(s.enrolledDate, dateRange));
   };
 
   // Correct tri-tab split using raw DB fields
@@ -590,7 +602,11 @@ export function Enrollment({ year, plan, search = "", onStudentClick }: Props) {
           {/* Range dropdown */}
           <RangeDropdown
             value={dateRange}
-            onChange={v => { setDateRange(v as DateRange); setPage(1); }}
+            onChange={v => {
+              setDateRange(v as DateRange);
+              setPage(1);
+              if (v !== "custom") { setCustomFrom(""); setCustomTo(""); setAppliedFrom(""); setAppliedTo(""); }
+            }}
             options={[
               { value: "all",    label: "All" },
               { value: "today",  label: "Today" },
@@ -600,20 +616,27 @@ export function Enrollment({ year, plan, search = "", onStudentClick }: Props) {
             ]}
           />
 
-          {/* Date picker */}
-          <div className="flex items-center gap-1 flex-1 sm:flex-none">
-            <CalendarPicker
-              value={pickerDate}
-              onChange={v => { setPickerDate(v); setPage(1); }}
-              align="right"
-            />
-            {pickerDate && (
-              <button onClick={() => { setPickerDate(""); setPage(1); }}
-                className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0" style={{ fontSize:16, lineHeight:1 }}>
-                ×
+          {/* Custom date range — only shown when Custom is selected */}
+          {dateRange === "custom" && (
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <CalendarPicker value={customFrom} onChange={setCustomFrom} compact placeholder="From" align="right" />
+              <span className="text-muted-foreground" style={{ fontSize: 11 }}>→</span>
+              <CalendarPicker value={customTo}   onChange={setCustomTo}   compact placeholder="To"   align="right" />
+              <button
+                onClick={() => { setAppliedFrom(customFrom); setAppliedTo(customTo); setPage(1); }}
+                className="px-2.5 py-1 rounded-lg text-white font-medium flex-shrink-0"
+                style={{ background: "var(--primary)", fontSize: 11 }}>
+                Apply
               </button>
-            )}
-          </div>
+              {(appliedFrom || appliedTo) && (
+                <button
+                  onClick={() => { setCustomFrom(""); setCustomTo(""); setAppliedFrom(""); setAppliedTo(""); setPage(1); }}
+                  className="text-muted-foreground hover:text-foreground flex-shrink-0" style={{ fontSize: 16, lineHeight: 1 }}>
+                  ×
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

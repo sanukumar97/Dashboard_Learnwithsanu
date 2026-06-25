@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useId } from "react";
 import {
   CalendarClock, Mail, ClipboardList, BarChart2,
   Search, Sun, Moon, ChevronDown, Menu, X,
@@ -134,6 +134,54 @@ function RevenueGate({ onSuccess, onCancel }: { onSuccess: () => void; onCancel:
           </button>
         </form>
       </div>
+    </div>
+  );
+}
+
+function YearDropdown({ year, onChange, years }: { year: string; onChange: (y: string) => void; years: string[] }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useId(); // satisfy lint
+
+  useEffect(() => {
+    if (!open) return;
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  return (
+    <div ref={ref} className="relative hidden sm:block ml-1">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-1.5 border border-border rounded-xl px-3 py-1.5 bg-muted hover:bg-accent transition-colors"
+        style={{ fontSize: 12 }}
+      >
+        <Calendar size={13} className="text-muted-foreground flex-shrink-0" />
+        <span className="font-medium text-foreground">{year}</span>
+        <ChevronDown size={11} className="text-muted-foreground" />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-full mt-1.5 z-50 min-w-[110px] bg-card border border-border rounded-xl shadow-lg py-1 overflow-hidden">
+          {years.map(y => (
+            <button
+              key={y}
+              onClick={() => { onChange(y); setOpen(false); }}
+              className={`w-full text-left px-4 py-2 transition-colors ${
+                y === year
+                  ? "bg-primary text-white font-semibold"
+                  : "text-foreground hover:bg-muted"
+              }`}
+              style={{ fontSize: 12 }}
+            >
+              {y}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -279,18 +327,8 @@ export default function App() {
               <LogOut size={15} className="text-muted-foreground"/>
             </button>
 
-            {/* Year selector — in header right per reference */}
-            <div className="hidden sm:flex items-center gap-1.5 border border-border rounded-xl px-3 py-1.5 bg-muted ml-1">
-              <Calendar size={13} className="text-muted-foreground flex-shrink-0"/>
-              <select
-                value={year} onChange={e => setYear(e.target.value)}
-                className="bg-transparent outline-none text-foreground font-medium appearance-none cursor-pointer"
-                style={{ fontSize:12 }}
-              >
-                {YEARS.map(y => <option key={y} value={y}>{y}</option>)}
-              </select>
-              <ChevronDown size={11} className="text-muted-foreground"/>
-            </div>
+            {/* Year selector — custom dropdown */}
+            <YearDropdown year={year} onChange={setYear} years={YEARS} />
           </div>
         </header>
 

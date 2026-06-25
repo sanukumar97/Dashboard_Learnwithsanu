@@ -135,9 +135,12 @@ export function Sessions({ year = "All Time", plan = "All Plans", search = "", o
   const [reschedId, setReschedId]     = useState<string | null>(null);
   const [reschedForm, setReschedForm] = useState({ date: "", time: "" });
   const [copied, setCopied]           = useState<string | null>(null);
-  const [filterDate, setFilterDate]   = useState("");
   const [savedFlash, setSavedFlash]   = useState<string | null>(null);
   const [sessionRange, setSessionRange] = useState<SessionRange>("all");
+  const [customFrom,  setCustomFrom]  = useState("");
+  const [customTo,    setCustomTo]    = useState("");
+  const [appliedFrom, setAppliedFrom] = useState("");
+  const [appliedTo,   setAppliedTo]   = useState("");
   const [plans, setPlans]             = useState<AdminPlan[]>([]);
   const [templates, setTemplates]     = useState<EmailTemplate[]>([]);
   const [mailTarget, setMailTarget]   = useState<Student | null>(null);
@@ -169,8 +172,19 @@ export function Sessions({ year = "All Time", plan = "All Plans", search = "", o
 
   const applyFilters = (list: SE[]) => {
     let out = list;
-    if (sessionRange !== "all" && sessionRange !== "custom") out = out.filter(se => se.date && matchesRange(se.date, sessionRange));
-    if (filterDate) out = out.filter(se => se.date === filterDate);
+    if (sessionRange === "custom") {
+      if (appliedFrom || appliedTo) {
+        out = out.filter(se => {
+          if (!se.date) return false;
+          const d = new Date(se.date + "T00:00:00");
+          if (appliedFrom && d < new Date(appliedFrom + "T00:00:00")) return false;
+          if (appliedTo   && d > new Date(appliedTo   + "T23:59:59")) return false;
+          return true;
+        });
+      }
+    } else if (sessionRange !== "all") {
+      out = out.filter(se => se.date && matchesRange(se.date, sessionRange));
+    }
     return out;
   };
 
@@ -668,7 +682,10 @@ export function Sessions({ year = "All Time", plan = "All Plans", search = "", o
             {/* Range dropdown */}
             <RangeDropdown
               value={sessionRange}
-              onChange={v => setSessionRange(v as SessionRange)}
+              onChange={v => {
+                setSessionRange(v as SessionRange);
+                if (v !== "custom") { setCustomFrom(""); setCustomTo(""); setAppliedFrom(""); setAppliedTo(""); }
+              }}
               options={[
                 { value: "all",    label: "All" },
                 { value: "today",  label: "Today" },
@@ -678,20 +695,27 @@ export function Sessions({ year = "All Time", plan = "All Plans", search = "", o
               ]}
             />
 
-            {/* Date picker */}
-            <div className="flex items-center gap-1 flex-1 sm:flex-none">
-              <CalendarPicker
-                value={filterDate}
-                onChange={setFilterDate}
-                align="right"
-              />
-              {filterDate && (
-                <button onClick={() => setFilterDate("")}
-                  className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0" style={{ fontSize: 16, lineHeight: 1 }}>
-                  ×
+            {/* Custom date range — only shown when Custom is selected */}
+            {sessionRange === "custom" && (
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <CalendarPicker value={customFrom} onChange={setCustomFrom} compact placeholder="From" align="right" />
+                <span className="text-muted-foreground" style={{ fontSize: 11 }}>→</span>
+                <CalendarPicker value={customTo}   onChange={setCustomTo}   compact placeholder="To"   align="right" />
+                <button
+                  onClick={() => { setAppliedFrom(customFrom); setAppliedTo(customTo); }}
+                  className="px-2.5 py-1 rounded-lg text-white font-medium flex-shrink-0"
+                  style={{ background: "var(--primary)", fontSize: 11 }}>
+                  Apply
                 </button>
-              )}
-            </div>
+                {(appliedFrom || appliedTo) && (
+                  <button
+                    onClick={() => { setCustomFrom(""); setCustomTo(""); setAppliedFrom(""); setAppliedTo(""); }}
+                    className="text-muted-foreground hover:text-foreground flex-shrink-0" style={{ fontSize: 16, lineHeight: 1 }}>
+                    ×
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
