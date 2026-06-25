@@ -53,7 +53,7 @@ export function Earnings({ year, plan }: { year: string; plan: string }) {
   const yearNum = year === "All Time" ? new Date().getFullYear() : parseInt(year);
 
   useEffect(() => {
-    fetchAllPlansAdmin().then(all => setPlans(all.filter(p => p.is_active)));
+    fetchAllPlansAdmin().then(setPlans);
   }, []);
 
   useEffect(() => {

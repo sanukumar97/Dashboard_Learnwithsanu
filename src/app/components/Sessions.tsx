@@ -50,7 +50,7 @@ const Card = ({ children }: { children: React.ReactNode }) => (
   </div>
 );
 
-interface Props { plan?: string; search?: string; onStudentClick?: (s: Student) => void; }
+interface Props { year?: string; plan?: string; search?: string; onStudentClick?: (s: Student) => void; }
 
 function PhoneLink({ phone }: { phone: string }) {
   return (
@@ -128,7 +128,7 @@ function CommentCell({ value, onChange }: { value: string; onChange: (v: string)
   );
 }
 
-export function Sessions({ plan = "All Plans", search = "", onStudentClick }: Props) {
+export function Sessions({ year = "All Time", plan = "All Plans", search = "", onStudentClick }: Props) {
   const { students, loading, refresh } = useLiveEnrollments();
   const [activeTab, setActiveTab]     = useState<STab>("scheduled");
   const [pendingForm, setPendingForm] = useState<Record<string, { date: string; time: string; notes: string }>>({});
@@ -151,6 +151,7 @@ export function Sessions({ plan = "All Plans", search = "", onStudentClick }: Pr
   const q = search.trim().toLowerCase();
   const approvedStudents = students.filter(s =>
     s.dbStatus === "submitted" && !!s.adminApprovedAt &&
+    (year === "All Time" || new Date(s.enrolledDate).getFullYear() === parseInt(year)) &&
     (plan === "All Plans" || s.planSlug === plan) &&
     (!q || s.name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q))
   );

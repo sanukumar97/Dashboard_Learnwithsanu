@@ -145,7 +145,7 @@ export default function App() {
   const [dark,           setDark]           = useState(false);
   const [tab,            setTab]            = useState<Tab>("enrollment");
   const [plan,           setPlan]           = useState("All Plans");
-  const [year,           setYear]           = useState("All Time");
+  const [year,           setYear]           = useState(String(new Date().getFullYear()));
   const [planOptions,    setPlanOptions]    = useState<string[]>(FALLBACK_PLANS);
   const [sidebarOpen,    setSidebar]        = useState(false);
   const [search,         setSearch]         = useState("");
@@ -426,8 +426,8 @@ export default function App() {
 
             {/* Content */}
             <main className="flex-1 overflow-y-auto flex flex-col">
-              {tab === "sessions"      && <Sessions      plan={plan} search={search} onStudentClick={setProfileStudent}/>}
-              {tab === "communication" && <Communications plan={plan} search={search}/>}
+              {tab === "sessions"      && <Sessions      year={year} plan={plan} search={search} onStudentClick={setProfileStudent}/>}
+              {tab === "communication" && <Communications year={year} plan={plan} search={search}/>}
               {tab === "enrollment"    && <Enrollment    year={year} plan={plan} search={search} onStudentClick={setProfileStudent}/>}
               {tab === "analytics"     && <Analytics     year={year} plan={plan} onStudentClick={setProfileStudent}/>}
               {tab === "earnings"      && <Earnings      year={year} plan={plan}/>}

@@ -47,7 +47,7 @@ function preview(b: string) {
     .replace(/{{session_time}}/g, "10:00");
 }
 
-export function Communications({ plan = "All Plans", search = "" }: { plan?: string; search?: string }) {
+export function Communications({ year = "All Time", plan = "All Plans", search = "" }: { year?: string; plan?: string; search?: string }) {
   const { students: allS } = useLiveEnrollments();
 
   const [plans, setPlans]          = useState<AdminPlan[]>([]);
@@ -103,6 +103,7 @@ export function Communications({ plan = "All Plans", search = "" }: { plan?: str
 
   const q = search.trim().toLowerCase();
   const mailStudents = allS.filter(s =>
+    (year === "All Time" || new Date(s.enrolledDate).getFullYear() === parseInt(year)) &&
     (plan === "All Plans" || s.planSlug === plan) &&
     (!q || s.name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q))
   );

@@ -421,13 +421,13 @@ export function Enrollment({ year, plan, search = "", onStudentClick }: Props) {
   };
 
   // Correct tri-tab split using raw DB fields
-  const pending  = dateFilter(planFiltered.filter(s => s.dbStatus === "submitted" && !s.adminApprovedAt));
-  const enrolled = dateFilter(planFiltered.filter(s => s.dbStatus === "submitted" && !!s.adminApprovedAt));
-  const deleted  = dateFilter(planFiltered.filter(s => s.dbStatus === "cancelled"));
+  const pending  = dateFilter(base.filter(s => s.dbStatus === "submitted" && !s.adminApprovedAt));
+  const enrolled = dateFilter(base.filter(s => s.dbStatus === "submitted" && !!s.adminApprovedAt));
+  const deleted  = dateFilter(base.filter(s => s.dbStatus === "cancelled"));
 
-  const enrolledCount = planFiltered.filter(s => s.dbStatus === "submitted" && !!s.adminApprovedAt).length;
-  const pendingCount  = planFiltered.filter(s => s.dbStatus === "submitted" && !s.adminApprovedAt).length;
-  const deletedCount  = planFiltered.filter(s => s.dbStatus === "cancelled").length;
+  const enrolledCount = base.filter(s => s.dbStatus === "submitted" && !!s.adminApprovedAt).length;
+  const pendingCount  = base.filter(s => s.dbStatus === "submitted" && !s.adminApprovedAt).length;
+  const deletedCount  = base.filter(s => s.dbStatus === "cancelled").length;
 
   const atRisk = enrolled.filter(s => {
     const planLimit = parseInt(plans.find(p => p.slug === s.planSlug)?.session_limit ?? "0", 10);
