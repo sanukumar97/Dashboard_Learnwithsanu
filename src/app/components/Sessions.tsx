@@ -17,15 +17,86 @@ import { fetchActivePlansAdmin, type AdminPlan } from "../../services/planServic
 import { fetchEmailTemplates, type EmailTemplate } from "../../services/emailTemplateService";
 import { sendMail } from "../../services/mailLogService";
 
-const SLOTS = Array.from({ length: 24 }, (_, i) => {
-  const h = 8 + Math.floor(i / 2);
-  const m = i % 2 === 0 ? "00" : "30";
-  return `${String(h).padStart(2, "0")}:${m}`;
-});
-
 function today() { return new Date().toISOString().split("T")[0]; }
 function fmtDate(d: string) {
   return new Date(d + "T00:00:00").toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+function fmtTime(t: string) {
+  if (!t) return "";
+  const [hStr, mStr = "00"] = t.split(":");
+  const h = parseInt(hStr, 10);
+  if (isNaN(h)) return t;
+  const ampm = h >= 12 ? "PM" : "AM";
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${h12}:${mStr} ${ampm}`;
+}
+
+function parse12to24(display: string, ampm: string): string {
+  const [hStr, mStr = "00"] = display.split(":");
+  let h = parseInt(hStr, 10);
+  if (isNaN(h)) return "";
+  const m = mStr.replace(/\D/g, "").padStart(2, "0").slice(0, 2);
+  if (ampm === "AM") { if (h === 12) h = 0; }
+  else               { if (h !== 12) h += 12; }
+  return `${String(h).padStart(2, "0")}:${m}`;
+}
+
+function parse24to12(v: string): { display: string; ampm: "AM" | "PM" } {
+  if (!v) return { display: "", ampm: "AM" };
+  const [hStr, mStr = "00"] = v.split(":");
+  const h = parseInt(hStr, 10);
+  if (isNaN(h)) return { display: v, ampm: "AM" };
+  const ampm: "AM" | "PM" = h >= 12 ? "PM" : "AM";
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return { display: `${h12}:${mStr}`, ampm };
+}
+
+function TimeInput({ value, onChange, className = "" }: { value: string; onChange: (v: string) => void; className?: string }) {
+  const { display: initDisplay, ampm: initAmpm } = parse24to12(value);
+  const [display, setDisplay] = useState(initDisplay);
+  const [ampm, setAmpm]       = useState<"AM" | "PM">(initAmpm);
+
+  useEffect(() => {
+    const { display: d, ampm: a } = parse24to12(value);
+    setDisplay(d);
+    setAmpm(a);
+  }, [value]);
+
+  function handleDisplayChange(v: string) {
+    setDisplay(v);
+    const t24 = parse12to24(v, ampm);
+    if (t24) onChange(t24);
+  }
+
+  function handleAmpm(a: "AM" | "PM") {
+    setAmpm(a);
+    const t24 = parse12to24(display, a);
+    if (t24) onChange(t24);
+  }
+
+  return (
+    <div className={`flex items-center gap-1 ${className}`}>
+      <input
+        type="text"
+        value={display}
+        onChange={e => handleDisplayChange(e.target.value)}
+        placeholder="10:30"
+        maxLength={5}
+        className="bg-muted border border-border rounded-xl px-2 py-1.5 outline-none focus:ring-2 focus:ring-primary text-foreground text-center"
+        style={{ fontSize: 12, width: 60 }}
+      />
+      <div className="flex rounded-xl overflow-hidden border border-border">
+        {(["AM", "PM"] as const).map(a => (
+          <button key={a} type="button" onClick={() => handleAmpm(a)}
+            className={`px-2 py-1.5 font-medium transition-colors ${ampm === a ? "bg-primary text-white" : "bg-muted text-muted-foreground hover:bg-accent"}`}
+            style={{ fontSize: 11 }}>
+            {a}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 interface SE { studentId: string; date: string; time: string; notes: string; gmeetLink: string; completed: boolean; }
@@ -354,11 +425,10 @@ export function Sessions({ year = "All Time", plan = "All Plans", search = "", o
                           <input type="date" value={reschedForm.date}
                             onChange={e => setReschedForm(f => ({ ...f, date: e.target.value }))}
                             className="bg-muted border border-border rounded-xl px-2 py-1 outline-none focus:ring-1 focus:ring-primary text-foreground" style={{ fontSize: 12 }} />
-                          <select value={reschedForm.time}
-                            onChange={e => setReschedForm(f => ({ ...f, time: e.target.value }))}
-                            className="bg-muted border border-border rounded-xl px-2 py-1 outline-none focus:ring-1 focus:ring-primary text-foreground appearance-none" style={{ fontSize: 12 }}>
-                            {SLOTS.map(t => <option key={t}>{t}</option>)}
-                          </select>
+                          <TimeInput
+                            value={reschedForm.time}
+                            onChange={v => setReschedForm(f => ({ ...f, time: v }))}
+                          />
                           <div className="flex gap-1">
                             <button onClick={confirmReschedule}
                               className="px-2.5 py-1 bg-primary text-white rounded-xl" style={{ fontSize: 11 }}>Save</button>
@@ -369,7 +439,7 @@ export function Sessions({ year = "All Time", plan = "All Plans", search = "", o
                       ) : (
                         <div>
                           <p style={{ fontSize: 13 }} className="font-medium text-foreground">{fmtDate(se.date)}</p>
-                          <p style={{ fontSize: 11 }} className="text-muted-foreground">{se.time}</p>
+                          <p style={{ fontSize: 11 }} className="text-muted-foreground">{fmtTime(se.time)}</p>
                         </div>
                       )}
                     </td>
@@ -512,12 +582,10 @@ export function Sessions({ year = "All Time", plan = "All Plans", search = "", o
                         className="bg-muted border border-border rounded-xl px-3 py-1.5 outline-none focus:ring-2 focus:ring-primary text-foreground" style={{ fontSize: 12 }} />
                     </td>
                     <td className="px-5 py-3.5">
-                      <select value={f.time}
-                        onChange={e => setPendingForm(p => ({ ...p, [s.id]: { ...f, time: e.target.value } }))}
-                        className="bg-muted border border-border rounded-xl px-3 py-1.5 outline-none focus:ring-2 focus:ring-primary text-foreground appearance-none" style={{ fontSize: 12 }}>
-                        <option value="">Time</option>
-                        {SLOTS.map(t => <option key={t}>{t}</option>)}
-                      </select>
+                      <TimeInput
+                        value={f.time}
+                        onChange={v => setPendingForm(p => ({ ...p, [s.id]: { ...f, time: v } }))}
+                      />
                     </td>
                     <td className="px-5 py-3.5">
                       <textarea
@@ -617,7 +685,7 @@ export function Sessions({ year = "All Time", plan = "All Plans", search = "", o
                     <td className="px-5 py-3.5"><EmailLink email={s.email} /></td>
                     <td className="px-5 py-3.5">
                       <p style={{ fontSize: 13 }} className="font-medium text-foreground">{fmtDate(se.date)}</p>
-                      <p style={{ fontSize: 11 }} className="text-muted-foreground">{se.time}</p>
+                      <p style={{ fontSize: 11 }} className="text-muted-foreground">{fmtTime(se.time)}</p>
                     </td>
                     <td className="px-5 py-3.5">
                       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-900 whitespace-nowrap" style={{ fontSize: 12 }}>
