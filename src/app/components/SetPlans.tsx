@@ -449,6 +449,54 @@ export function SetPlans({ onClose }: Props) {
                 </div>
 
                 <div className="grid gap-4 p-5 sm:grid-cols-2">
+
+                  {/* Enrollment Form toggle — first so admin sets context before filling fields */}
+                  <div className="sm:col-span-2">
+                    <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Enrollment Form
+                    </span>
+                    <div className="flex gap-2 rounded-2xl border-2 border-border bg-muted/40 p-1.5">
+                      {(["paid", "free"] as const).map(type => {
+                        const selected = draft.formType === type;
+                        return (
+                          <button
+                            key={type}
+                            type="button"
+                            onClick={() => setDraft(d => ({ ...d, formType: type }))}
+                            className="flex-1 rounded-xl py-2.5 text-sm font-bold transition-all active:scale-95"
+                            style={{
+                              background: selected
+                                ? type === "paid" ? "var(--primary)" : "#059669"
+                                : "transparent",
+                              color: selected ? "white" : "var(--muted-foreground)",
+                              border: "2px solid transparent",
+                              boxShadow: selected ? "0 2px 10px rgba(0,0,0,0.18)" : "none",
+                            }}
+                            onMouseEnter={e => {
+                              if (!selected) {
+                                (e.currentTarget as HTMLButtonElement).style.background = type === "paid" ? "rgba(19,43,252,0.10)" : "rgba(5,150,105,0.10)";
+                                (e.currentTarget as HTMLButtonElement).style.color = type === "paid" ? "var(--primary)" : "#059669";
+                              }
+                            }}
+                            onMouseLeave={e => {
+                              if (!selected) {
+                                (e.currentTarget as HTMLButtonElement).style.background = "transparent";
+                                (e.currentTarget as HTMLButtonElement).style.color = "var(--muted-foreground)";
+                              }
+                            }}
+                          >
+                            {type === "paid" ? "💳 Paid Enrollment" : "🎁 Free 1-on-1"}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="mt-1.5 text-xs text-muted-foreground">
+                      {draft.formType === "paid"
+                        ? "This plan appears in the paid enrollment form only."
+                        : "This plan appears in the free 1-on-1 booking form only."}
+                    </p>
+                  </div>
+
                   <Field label="Slug">
                     <input
                       value={draft.slug}
@@ -526,54 +574,6 @@ export function SetPlans({ onClose }: Props) {
                     </Field>
                   </div>
 
-                  {/* Form Type toggle */}
-                  <div className="sm:col-span-2">
-                    <span className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Enrollment Form
-                    </span>
-                    <div className="flex gap-2 rounded-2xl border-2 border-border bg-muted/40 p-1.5">
-                      {(["paid", "free"] as const).map(type => {
-                        const selected = draft.formType === type;
-                        return (
-                          <button
-                            key={type}
-                            type="button"
-                            onClick={() => setDraft(d => ({ ...d, formType: type }))}
-                            className="flex-1 rounded-xl py-2.5 text-sm font-bold transition-all active:scale-95"
-                            style={{
-                              background: selected
-                                ? type === "paid" ? "var(--primary)" : "#059669"
-                                : "transparent",
-                              color: selected ? "white" : "var(--muted-foreground)",
-                              border: selected ? "2px solid transparent" : "2px solid transparent",
-                              boxShadow: selected ? "0 2px 10px rgba(0,0,0,0.18)" : "none",
-                              outline: !selected ? "none" : undefined,
-                            }}
-                            onMouseEnter={e => {
-                              if (!selected) {
-                                (e.currentTarget as HTMLButtonElement).style.background = type === "paid" ? "rgba(19,43,252,0.10)" : "rgba(5,150,105,0.10)";
-                                (e.currentTarget as HTMLButtonElement).style.color = type === "paid" ? "var(--primary)" : "#059669";
-                              }
-                            }}
-                            onMouseLeave={e => {
-                              if (!selected) {
-                                (e.currentTarget as HTMLButtonElement).style.background = "transparent";
-                                (e.currentTarget as HTMLButtonElement).style.color = "var(--muted-foreground)";
-                              }
-                            }}
-                          >
-                            {type === "paid" ? "💳 Paid Enrollment" : "🎁 Free 1-on-1"}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <p className="mt-1.5 text-xs text-muted-foreground">
-                      {draft.formType === "paid"
-                        ? "This plan appears in the paid enrollment form only."
-                        : "This plan appears in the free 1-on-1 booking form only."}
-                    </p>
-                  </div>
-
                   <div className="flex items-end">
                     <label className="flex items-center gap-2 text-sm text-foreground">
                       <input
@@ -615,48 +615,52 @@ export function SetPlans({ onClose }: Props) {
                 </div>
               </section>
 
-              <section className="rounded-2xl border border-border bg-card">
-                <div className="border-b border-border px-5 py-4">
-                  <p className="font-semibold text-foreground" style={{ fontSize: 14 }}>
-                    💳 Paid Form Plans
-                  </p>
-                  <p className="text-muted-foreground" style={{ fontSize: 12 }}>
-                    Shown in the paid enrollment form.
-                  </p>
-                </div>
-                <PlanList
-                  plans={activePaidPlans}
-                  planCounts={planCounts}
-                  editingId={draft.id}
-                  onEdit={editPlan}
-                  onArchive={toggleArchive}
-                  onDelete={deletePlan}
-                  showDelete={false}
-                />
-              </section>
+              {draft.formType === "paid" && (
+                <section className="rounded-2xl border border-border bg-card">
+                  <div className="border-b border-border px-5 py-4">
+                    <p className="font-semibold text-foreground" style={{ fontSize: 14 }}>
+                      💳 Paid Form Plans
+                    </p>
+                    <p className="text-muted-foreground" style={{ fontSize: 12 }}>
+                      Shown in the paid enrollment form.
+                    </p>
+                  </div>
+                  <PlanList
+                    plans={draft.id ? activePaidPlans.filter(p => p.id === draft.id) : activePaidPlans}
+                    planCounts={planCounts}
+                    editingId={draft.id}
+                    onEdit={editPlan}
+                    onArchive={toggleArchive}
+                    onDelete={deletePlan}
+                    showDelete={false}
+                  />
+                </section>
+              )}
 
-              <section className="rounded-2xl border border-border bg-card">
-                <div className="border-b border-border px-5 py-4">
-                  <p className="font-semibold text-foreground" style={{ fontSize: 14 }}>
-                    🎁 Free 1-on-1 Plans
-                  </p>
-                  <p className="text-muted-foreground" style={{ fontSize: 12 }}>
-                    Shown in the free session booking form.
-                  </p>
-                </div>
-                <PlanList
-                  plans={activeFreePlans}
-                  planCounts={planCounts}
-                  editingId={draft.id}
-                  onEdit={editPlan}
-                  onArchive={toggleArchive}
-                  onDelete={deletePlan}
-                  showDelete={false}
-                />
-              </section>
+              {draft.formType === "free" && (
+                <section className="rounded-2xl border border-border bg-card">
+                  <div className="border-b border-border px-5 py-4">
+                    <p className="font-semibold text-foreground" style={{ fontSize: 14 }}>
+                      🎁 Free 1-on-1 Plans
+                    </p>
+                    <p className="text-muted-foreground" style={{ fontSize: 12 }}>
+                      Shown in the free session booking form.
+                    </p>
+                  </div>
+                  <PlanList
+                    plans={draft.id ? activeFreePlans.filter(p => p.id === draft.id) : activeFreePlans}
+                    planCounts={planCounts}
+                    editingId={draft.id}
+                    onEdit={editPlan}
+                    onArchive={toggleArchive}
+                    onDelete={deletePlan}
+                    showDelete={false}
+                  />
+                </section>
+              )}
 
-              {/* ── Free Form Session Note ─────────────────────── */}
-              <section className="rounded-2xl border border-border bg-card">
+              {/* ── Free Form Session Note — only relevant for free plans ── */}
+              {draft.formType === "free" && <section className="rounded-2xl border border-border bg-card">
                 <div className="border-b border-border px-5 py-4">
                   <p className="font-semibold text-foreground" style={{ fontSize: 14 }}>📌 Free Form Note</p>
                   <p className="text-muted-foreground" style={{ fontSize: 12 }}>
@@ -683,25 +687,27 @@ export function SetPlans({ onClose }: Props) {
                     )}
                   </div>
                 </div>
-              </section>
+              </section>}
 
-              <section className="rounded-2xl border border-border bg-card">
-                <div className="border-b border-border px-5 py-4">
-                  <p className="font-semibold text-foreground" style={{ fontSize: 14 }}>
-                    Archived Plans
-                  </p>
-                </div>
-                <PlanList
-                  plans={archivedPlans}
-                  planCounts={planCounts}
-                  editingId={draft.id}
-                  onEdit={editPlan}
-                  onArchive={toggleArchive}
-                  onDelete={deletePlan}
-                  showDelete={true}
-                  showFormTypeBadge={true}
-                />
-              </section>
+              {archivedPlans.filter(p => (draft.formType === "free" ? p.form_type === "free" : p.form_type !== "free")).length > 0 && (
+                <section className="rounded-2xl border border-border bg-card">
+                  <div className="border-b border-border px-5 py-4">
+                    <p className="font-semibold text-foreground" style={{ fontSize: 14 }}>
+                      Archived Plans
+                    </p>
+                  </div>
+                  <PlanList
+                    plans={archivedPlans.filter(p => draft.formType === "free" ? p.form_type === "free" : p.form_type !== "free")}
+                    planCounts={planCounts}
+                    editingId={draft.id}
+                    onEdit={editPlan}
+                    onArchive={toggleArchive}
+                    onDelete={deletePlan}
+                    showDelete={true}
+                    showFormTypeBadge={false}
+                  />
+                </section>
+              )}
 
               <section className="rounded-2xl border border-border bg-card">
                 <div className="border-b border-border px-5 py-4">
