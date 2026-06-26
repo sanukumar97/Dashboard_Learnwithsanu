@@ -50,7 +50,8 @@ export function Earnings({ year, plan }: { year: string; plan: string }) {
   const [appliedTo,    setAppliedTo]    = useState("");
   const filterRef = useRef<HTMLDivElement>(null);
 
-  const yearNum = year === "All Time" ? new Date().getFullYear() : parseInt(year);
+  // Revenue tab always uses a specific year; "All Time" falls back to current year
+  const effectiveYear = year === "All Time" ? new Date().getFullYear() : parseInt(year);
 
   useEffect(() => {
     fetchAllPlansAdmin().then(setPlans);
@@ -74,48 +75,57 @@ export function Earnings({ year, plan }: { year: string; plan: string }) {
     return PALETTE[(idx >= 0 ? idx : 0) % PALETTE.length];
   };
 
-  const filtered = allStudents.filter(s => {
+  // Only approved (onboarded) students count toward revenue
+  const approvedBase = allStudents.filter(s =>
+    s.dbStatus === "submitted" && !!s.adminApprovedAt &&
+    (plan === "All Plans" || s.planSlug === plan)
+  );
+
+  function inDateRange(s: { enrolledDate: string }) {
     const d = new Date(s.enrolledDate);
-    const y = d.getFullYear();
-    if (year !== "All Time" && y !== yearNum) return false;
-    if (plan !== "All Plans" && s.planSlug !== plan) return false;
     if (appliedFrom && d < new Date(appliedFrom + "T00:00:00")) return false;
     if (appliedTo   && d > new Date(appliedTo   + "T23:59:59")) return false;
     return true;
-  });
-  const prevFiltered = allStudents.filter(s => {
-    const y = new Date(s.enrolledDate).getFullYear();
-    return y === yearNum - 1 && (plan === "All Plans" || s.planSlug === plan);
-  });
+  }
 
-  const totalRevenue  = filtered.reduce((sum, s) => sum + s.planPrice, 0);
-  const prevRevenue   = prevFiltered.reduce((sum, s) => sum + s.planPrice, 0);
-  const revenueGrowth = prevRevenue > 0 ? Math.round(((totalRevenue - prevRevenue) / prevRevenue) * 100) : 0;
-  const monthlyRevenue = totalRevenue / 12;
-  const avgRevenue     = totalRevenue / Math.max(filtered.length, 1);
+  // Total Revenue — all approved students, all time (date range filter applies)
+  const totalBase    = approvedBase.filter(inDateRange);
+  const totalRevenue = totalBase.reduce((sum, s) => sum + s.planPrice, 0);
+
+  // Yearly Revenue — approved students in the effective year
+  const yearlyBase    = approvedBase.filter(s => new Date(s.enrolledDate).getFullYear() === effectiveYear && inDateRange(s));
+  const yearlyRevenue = yearlyBase.reduce((sum, s) => sum + s.planPrice, 0);
+
+  // Previous year for YoY comparison
+  const prevYearBase    = approvedBase.filter(s => new Date(s.enrolledDate).getFullYear() === effectiveYear - 1);
+  const prevRevenue     = prevYearBase.reduce((sum, s) => sum + s.planPrice, 0);
+  const revenueGrowth   = prevRevenue > 0 ? Math.round(((yearlyRevenue - prevRevenue) / prevRevenue) * 100) : 0;
+
+  const monthlyRevenue = yearlyRevenue / 12;
+  const avgRevenue     = yearlyRevenue / Math.max(yearlyBase.length, 1);
 
   function getMonthlyRevenue(y: number, pFilter: string) {
     return MONTHLY_LABELS.map((month, i) => ({
       month,
-      revenue: allStudents.filter(s => {
+      revenue: approvedBase.filter(s => {
         const d = new Date(s.enrolledDate);
         return d.getFullYear() === y && d.getMonth() === i && (pFilter === "All Plans" || s.planSlug === pFilter);
       }).reduce((sum, s) => sum + s.planPrice, 0),
     }));
   }
 
-  const monthly     = getMonthlyRevenue(yearNum, plan);
-  const monthlyPrev = getMonthlyRevenue(yearNum - 1, plan);
+  const monthly     = getMonthlyRevenue(effectiveYear, plan);
+  const monthlyPrev = getMonthlyRevenue(effectiveYear - 1, plan);
 
   const monthlyTrend = MONTHLY_LABELS.map((month, i) => ({
     month,
-    [yearNum]:     monthly[i].revenue,
-    [yearNum - 1]: monthlyPrev[i].revenue,
+    [effectiveYear]:     monthly[i].revenue,
+    [effectiveYear - 1]: monthlyPrev[i].revenue,
   }));
 
-  /* Plan-wise breakdown */
+  /* Plan-wise breakdown — based on yearly approved students */
   const planWise = plans.map((p, i) => {
-    const planStudents = filtered.filter(s => s.planSlug === p.slug);
+    const planStudents = yearlyBase.filter(s => s.planSlug === p.slug);
     return {
       slug:    p.slug,
       color:   PALETTE[i % PALETTE.length],
@@ -125,15 +135,15 @@ export function Earnings({ year, plan }: { year: string; plan: string }) {
   }).filter(p => p.count > 0);
 
   /* Revenue prediction — rates derived from actual YoY data when available */
-  const year2Revenue = allStudents
-    .filter(s => new Date(s.enrolledDate).getFullYear() === yearNum - 2 && (plan === "All Plans" || s.planSlug === plan))
+  const year2Revenue = approvedBase
+    .filter(s => new Date(s.enrolledDate).getFullYear() === effectiveYear - 2)
     .reduce((sum, s) => sum + s.planPrice, 0);
 
   const g1 = year2Revenue > 0 && prevRevenue > 0
-    ? (prevRevenue - year2Revenue) / year2Revenue   // yearNum-2 → yearNum-1
+    ? (prevRevenue - year2Revenue) / year2Revenue
     : null;
-  const g2 = prevRevenue > 0 && totalRevenue > 0
-    ? (totalRevenue - prevRevenue) / prevRevenue    // yearNum-1 → yearNum
+  const g2 = prevRevenue > 0 && yearlyRevenue > 0
+    ? (yearlyRevenue - prevRevenue) / prevRevenue
     : null;
 
   function clampRate(r: number) { return Math.min(Math.max(r, -0.30), 0.80); }
@@ -143,13 +153,11 @@ export function Earnings({ year, plan }: { year: string; plan: string }) {
   let rateSource: "actual" | "partial" | "default";
 
   if (g1 !== null && g2 !== null) {
-    // Two years of history — weighted average (recent year counts more)
     const derived = g1 * 0.4 + g2 * 0.6;
     growthRate1 = clampRate(derived);
     growthRate2 = clampRate(derived * 1.05);
     rateSource = "actual";
   } else if (g2 !== null) {
-    // One year of history
     growthRate1 = clampRate(g2);
     growthRate2 = clampRate(g2);
     rateSource = "partial";
@@ -161,21 +169,21 @@ export function Earnings({ year, plan }: { year: string; plan: string }) {
 
   const pct1 = Math.round(growthRate1 * 100);
   const pct2 = Math.round(growthRate2 * 100);
-  const prediction1 = Math.round(totalRevenue * (1 + growthRate1));
-  const prediction2 = Math.round(prediction1  * (1 + growthRate2));
+  const prediction1 = Math.round(yearlyRevenue * (1 + growthRate1));
+  const prediction2 = Math.round(prediction1   * (1 + growthRate2));
   const predData = [
-    { year: String(yearNum - 1), revenue: prevRevenue,  fill: "#C7D0FF" },
-    { year: String(yearNum),     revenue: totalRevenue, fill: "#3B5BFF" },
-    { year: String(yearNum + 1), revenue: prediction1,  fill: "#7E9BFF", predicted: true },
-    { year: String(yearNum + 2), revenue: prediction2,  fill: "#A5B4FF", predicted: true },
+    { year: String(effectiveYear - 1), revenue: prevRevenue,   fill: "#C7D0FF" },
+    { year: String(effectiveYear),     revenue: yearlyRevenue, fill: "#3B5BFF" },
+    { year: String(effectiveYear + 1), revenue: prediction1,   fill: "#7E9BFF", predicted: true },
+    { year: String(effectiveYear + 2), revenue: prediction2,   fill: "#A5B4FF", predicted: true },
   ];
 
-  /* Year-wise summary (last 3 years) */
-  const yearData = [yearNum - 2, yearNum - 1, yearNum].map(y => ({
+  /* Year-wise summary (last 3 years) — approved only */
+  const yearData = [effectiveYear - 2, effectiveYear - 1, effectiveYear].map(y => ({
     year: String(y),
-    revenue: allStudents.filter(s =>
-      new Date(s.enrolledDate).getFullYear() === y && (plan === "All Plans" || s.planSlug === plan)
-    ).reduce((sum, s) => sum + s.planPrice, 0),
+    revenue: approvedBase
+      .filter(s => new Date(s.enrolledDate).getFullYear() === y)
+      .reduce((sum, s) => sum + s.planPrice, 0),
   }));
 
   const KpiCard = ({ title, value, sub, icon: Icon, accent, pct }: any) => (
@@ -279,10 +287,10 @@ export function Earnings({ year, plan }: { year: string; plan: string }) {
 
       {/* KPI row */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-        <KpiCard title="Total Revenue"   value={fmtFull(Math.round(totalRevenue))}       pct={revenueGrowth}                   icon={RupeeIcon}  accent="#3B5BFF"/>
-        <KpiCard title="Monthly Avg"     value={fmtFull(Math.round(monthlyRevenue))}     sub="Average per month"               icon={Calendar}   accent="#22C55E"/>
-        <KpiCard title="Yearly Revenue"  value={fmtFull(Math.round(totalRevenue))}       sub={`${yearNum} total`}              icon={BarChart2}  accent="#8B5CF6"/>
-        <KpiCard title="Avg per Student" value={fmtFull(Math.round(avgRevenue))}         sub={`From ${filtered.length} students`} icon={TrendingUp} accent="#F59E0B"/>
+        <KpiCard title="Total Revenue"   value={fmtFull(Math.round(totalRevenue))}   sub={`${totalBase.length} onboarded students`}    icon={RupeeIcon}  accent="#3B5BFF"/>
+        <KpiCard title="Yearly Revenue"  value={fmtFull(Math.round(yearlyRevenue))}  pct={revenueGrowth} sub={`${effectiveYear} only`} icon={BarChart2}  accent="#8B5CF6"/>
+        <KpiCard title="Monthly Avg"     value={fmtFull(Math.round(monthlyRevenue))} sub="Average per month this year"                 icon={Calendar}   accent="#22C55E"/>
+        <KpiCard title="Avg per Student" value={fmtFull(Math.round(avgRevenue))}     sub={`From ${yearlyBase.length} students`}        icon={TrendingUp} accent="#F59E0B"/>
       </div>
 
       {/* Monthly revenue area chart */}
@@ -291,8 +299,8 @@ export function Earnings({ year, plan }: { year: string; plan: string }) {
           <div>
             <h3 className="text-foreground">Monthly Revenue</h3>
             <p style={{ fontSize: 12 }} className="text-muted-foreground mt-0.5">
-              <span className="text-primary font-medium">—</span> {yearNum} &nbsp;
-              <span className="text-purple-400 font-medium">- -</span> {yearNum - 1}
+              <span className="text-primary font-medium">—</span> {effectiveYear} &nbsp;
+              <span className="text-purple-400 font-medium">- -</span> {effectiveYear - 1}
             </p>
           </div>
         </div>
@@ -312,8 +320,8 @@ export function Earnings({ year, plan }: { year: string; plan: string }) {
             <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false}/>
             <YAxis tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={60} tickFormatter={v => fmt(v)}/>
             <Tooltip content={<Tip/>}/>
-            <Area type="monotone" dataKey={yearNum}     stroke="#3B5BFF" strokeWidth={2.5} fill="url(#grad1)" dot={false}/>
-            <Area type="monotone" dataKey={yearNum - 1} stroke="#8B5CF6" strokeWidth={2} strokeDasharray="5 4" fill="url(#grad2)" dot={false}/>
+            <Area type="monotone" dataKey={effectiveYear}     stroke="#3B5BFF" strokeWidth={2.5} fill="url(#grad1)" dot={false}/>
+            <Area type="monotone" dataKey={effectiveYear - 1} stroke="#8B5CF6" strokeWidth={2} strokeDasharray="5 4" fill="url(#grad2)" dot={false}/>
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -377,7 +385,7 @@ export function Earnings({ year, plan }: { year: string; plan: string }) {
           <h3 className="text-foreground">Revenue Prediction</h3>
         </div>
         <p style={{ fontSize: 12 }} className="text-muted-foreground mb-5">
-          Projected growth at {pct1}% ({yearNum + 1}) and {pct2}% ({yearNum + 2})
+          Projected growth at {pct1}% ({effectiveYear + 1}) and {pct2}% ({effectiveYear + 2})
           {" · "}
           {rateSource === "actual"  && "rates derived from 2 years of actual data"}
           {rateSource === "partial" && "rate derived from last year's actual growth"}
@@ -399,8 +407,8 @@ export function Earnings({ year, plan }: { year: string; plan: string }) {
           </div>
           <div className="flex flex-col gap-3">
             {[
-              { year: yearNum + 1, value: prediction1, growth: pct1, color: "#7E9BFF" },
-              { year: yearNum + 2, value: prediction2, growth: pct2, color: "#A5B4FF" },
+              { year: effectiveYear + 1, value: prediction1, growth: pct1, color: "#7E9BFF" },
+              { year: effectiveYear + 2, value: prediction2, growth: pct2, color: "#A5B4FF" },
             ].map(p => (
               <div key={p.year} className="rounded-2xl p-4" style={{ background: p.color + "18", border: `1px solid ${p.color}44` }}>
                 <div className="flex items-center gap-2 mb-2">
@@ -420,7 +428,7 @@ export function Earnings({ year, plan }: { year: string; plan: string }) {
       {/* Month-wise breakdown table */}
       <div className="bg-card rounded-3xl overflow-hidden" style={{ boxShadow: "var(--shadow-card)" }}>
         <div className="px-6 py-4 border-b border-border">
-          <h3 className="text-foreground">Month-wise Revenue Breakdown — {yearNum}</h3>
+          <h3 className="text-foreground">Month-wise Revenue Breakdown — {effectiveYear}</h3>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -437,7 +445,7 @@ export function Earnings({ year, plan }: { year: string; plan: string }) {
               {monthly.map((m, i) => {
                 const prevRev = i > 0 ? monthly[i - 1].revenue : 0;
                 const pctChange = prevRev > 0 ? Math.round(((m.revenue - prevRev) / prevRev) * 100) : 0;
-                const studentCount = filtered.filter(s => new Date(s.enrolledDate).getMonth() === i).length;
+                const studentCount = yearlyBase.filter(s => new Date(s.enrolledDate).getMonth() === i).length;
                 const avgPerStu = studentCount > 0 ? Math.round(m.revenue / studentCount) : 0;
                 return (
                   <tr key={m.month} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
@@ -460,7 +468,7 @@ export function Earnings({ year, plan }: { year: string; plan: string }) {
               <tr className="border-t-2 border-border bg-secondary/30">
                 <td className="px-6 py-3.5 font-bold text-foreground" style={{ fontSize: 13 }}>Total</td>
                 <td className="px-6 py-3.5 font-bold text-primary"    style={{ fontSize: 14 }}>{fmtFull(Math.round(totalRevenue))}</td>
-                <td className="px-6 py-3.5 font-bold text-foreground" style={{ fontSize: 13 }}>{filtered.length}</td>
+                <td className="px-6 py-3.5 font-bold text-foreground" style={{ fontSize: 13 }}>{yearlyBase.length}</td>
                 <td className="px-6 py-3.5 font-semibold text-muted-foreground" style={{ fontSize: 12 }}>{fmtFull(Math.round(avgRevenue))}</td>
                 <td className="px-6 py-3.5">
                   <span style={{ fontSize: 12 }} className={`font-bold ${revenueGrowth >= 0 ? "text-emerald-600" : "text-red-500"}`}>

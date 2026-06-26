@@ -69,7 +69,8 @@ export function Analytics({ year, plan, onStudentClick }: {
   const [drillCell, setDrillCell] = useState<{ planSlug: string; month: string } | null>(null);
   const [barView, setBarView] = useState<"grouped" | "stacked">("grouped");
 
-  const yearNum = year === "All Time" ? new Date().getFullYear() : parseInt(year);
+  // Analytics always works with a specific year; "All Time" falls back to current year
+  const effectiveYear = year === "All Time" ? new Date().getFullYear() : parseInt(year);
 
   useEffect(() => {
     fetchAllPlansAdmin().then(all => setPlans(all.filter(p => p.is_active)));
@@ -80,12 +81,18 @@ export function Analytics({ year, plan, onStudentClick }: {
     return PALETTE[(idx >= 0 ? idx : 0) % PALETTE.length];
   };
 
-  const filtered = allStudents.filter(s => {
+  // Only approved (onboarded) students count toward analytics
+  const approvedStudents = allStudents.filter(s =>
+    s.dbStatus === "submitted" && !!s.adminApprovedAt
+  );
+
+  const filtered = approvedStudents.filter(s => {
     const y = new Date(s.enrolledDate).getFullYear();
-    return (year === "All Time" || y === yearNum) && (plan === "All Plans" || s.planSlug === plan);
+    return y === effectiveYear && (plan === "All Plans" || s.planSlug === plan);
   });
-  const prevYear = allStudents.filter(s =>
-    new Date(s.enrolledDate).getFullYear() === yearNum - 1 && (plan === "All Plans" || s.planSlug === plan)
+  const prevYear = approvedStudents.filter(s =>
+    new Date(s.enrolledDate).getFullYear() === effectiveYear - 1 &&
+    (plan === "All Plans" || s.planSlug === plan)
   );
 
   const total  = filtered.length;
@@ -102,54 +109,53 @@ export function Analytics({ year, plan, onStudentClick }: {
   function getMonthly(y: number, pFilter: string) {
     return MONTHLY_LABELS.map((month, i) => ({
       month,
-      count: allStudents.filter(s => {
+      count: approvedStudents.filter(s => {
         const d = new Date(s.enrolledDate);
         return d.getFullYear() === y && d.getMonth() === i && (pFilter === "All Plans" || s.planSlug === pFilter);
       }).length,
     }));
   }
 
-  const monthly     = getMonthly(yearNum, plan);
-  const monthlyPrev = getMonthly(yearNum - 1, plan);
+  const monthly     = getMonthly(effectiveYear, plan);
+  const monthlyPrev = getMonthly(effectiveYear - 1, plan);
   const avg  = monthly.reduce((a, b) => a + b.count, 0) / 12;
   const peak = monthly.reduce((a, b) => b.count > a.count ? b : a, monthly[0]);
 
   const trend = MONTHLY_LABELS.map((month, i) => ({
-    month, [yearNum]: monthly[i].count, [yearNum - 1]: monthlyPrev[i].count,
+    month, [effectiveYear]: monthly[i].count, [effectiveYear - 1]: monthlyPrev[i].count,
   }));
 
   const topMonths = MONTHLY_LABELS.map((month, i) => {
     const count = monthly[i].count;
     const prevC = monthlyPrev[i].count;
     const topPlan = plans.length > 0
-      ? plans.reduce((b, p) => cellCount(allStudents, p.slug, i, yearNum) > cellCount(allStudents, b.slug, i, yearNum) ? p : b, plans[0])
+      ? plans.reduce((b, p) => cellCount(approvedStudents, p.slug, i, effectiveYear) > cellCount(approvedStudents, b.slug, i, effectiveYear) ? p : b, plans[0])
       : null;
     return { month, count, topSlug: topPlan?.slug ?? "—", pct: prevC > 0 ? Math.round(((count - prevC) / prevC) * 100) : 0 };
   }).sort((a, b) => b.count - a.count);
 
   const planComp = MONTHLY_LABELS.map((month, i) => {
     const row: Record<string, unknown> = { month };
-    plans.forEach(p => { row[p.slug] = cellCount(allStudents, p.slug, i, yearNum); });
+    plans.forEach(p => { row[p.slug] = cellCount(approvedStudents, p.slug, i, effectiveYear); });
     return row;
   });
 
   const planData = plans.map((p, i) => ({
     plan: p.slug,
-    count: allStudents.filter(s => {
-      const d = new Date(s.enrolledDate);
-      return (year === "All Time" || d.getFullYear() === yearNum) && s.planSlug === p.slug;
-    }).length,
+    count: approvedStudents.filter(s =>
+      new Date(s.enrolledDate).getFullYear() === effectiveYear && s.planSlug === p.slug
+    ).length,
     color: PALETTE[i % PALETTE.length],
   }));
   const planTotal = planData.reduce((a, b) => a + b.count, 0);
 
-  const allVals = plans.flatMap(p => MONTHLY_LABELS.map((_, i) => cellCount(allStudents, p.slug, i, yearNum)));
+  const allVals = plans.flatMap(p => MONTHLY_LABELS.map((_, i) => cellCount(approvedStudents, p.slug, i, effectiveYear)));
   const maxVal  = Math.max(...allVals, 1);
 
   const drillStudents = drillCell
-    ? allStudents.filter(s => {
+    ? approvedStudents.filter(s => {
         const d = new Date(s.enrolledDate);
-        return d.getFullYear() === yearNum &&
+        return d.getFullYear() === effectiveYear &&
           d.getMonth() === MONTHLY_LABELS.indexOf(drillCell.month) &&
           s.planSlug === drillCell.planSlug;
       })
@@ -238,7 +244,7 @@ export function Analytics({ year, plan, onStudentClick }: {
         <div className="px-6 py-4 border-b border-border">
           <h3 className="text-foreground">Onboarding Heatmap</h3>
           <p style={{ fontSize: 12 }} className="text-muted-foreground mt-0.5">
-            Plan × Month for {yearNum} — click any cell to drill in
+            Plan × Month for {effectiveYear} — click any cell to drill in
           </p>
         </div>
         <div className="overflow-x-auto p-5">
@@ -265,7 +271,7 @@ export function Analytics({ year, plan, onStudentClick }: {
                     </div>
                   </td>
                   {MONTHLY_LABELS.map((m, i) => {
-                    const v = cellCount(allStudents, p.slug, i, yearNum);
+                    const v = cellCount(approvedStudents, p.slug, i, effectiveYear);
                     const isDrill = drillCell?.planSlug === p.slug && drillCell.month === m;
                     return (
                       <td key={m} className="py-1 px-0.5">
@@ -288,7 +294,7 @@ export function Analytics({ year, plan, onStudentClick }: {
           <div className="border-t border-border px-6 py-4 bg-muted/30">
             <div className="flex items-center justify-between mb-3">
               <p className="font-semibold text-foreground" style={{ fontSize: 13 }}>
-                {drillCell.planSlug} — {drillCell.month} {yearNum}
+                {drillCell.planSlug} — {drillCell.month} {effectiveYear}
                 <span className="ml-2 font-normal text-muted-foreground" style={{ fontSize: 12 }}>
                   ({drillStudents.length} students)
                 </span>
@@ -322,8 +328,8 @@ export function Analytics({ year, plan, onStudentClick }: {
       <div className="bg-card rounded-3xl p-5" style={{ boxShadow: "var(--shadow-card)" }}>
         <h3 className="text-foreground mb-0.5">Year-over-Year Trend</h3>
         <p style={{ fontSize: 12 }} className="text-muted-foreground mb-4">
-          <span className="text-primary font-medium">—</span> {yearNum} &nbsp;
-          <span className="text-emerald-500 font-medium">- -</span> {yearNum - 1}
+          <span className="text-primary font-medium">—</span> {effectiveYear} &nbsp;
+          <span className="text-emerald-500 font-medium">- -</span> {effectiveYear - 1}
         </p>
         <ResponsiveContainer width="100%" height={220}>
           <LineChart data={trend}>
@@ -331,8 +337,8 @@ export function Analytics({ year, plan, onStudentClick }: {
             <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false}/>
             <YAxis tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={26}/>
             <Tooltip content={<Tip/>}/>
-            <Line type="monotone" dataKey={yearNum}     stroke="#3B5BFF" strokeWidth={2.5} dot={{ r: 3, fill: "#3B5BFF" }}/>
-            <Line type="monotone" dataKey={yearNum - 1} stroke="#22C55E" strokeWidth={2} strokeDasharray="5 4" dot={false}/>
+            <Line type="monotone" dataKey={effectiveYear}     stroke="#3B5BFF" strokeWidth={2.5} dot={{ r: 3, fill: "#3B5BFF" }}/>
+            <Line type="monotone" dataKey={effectiveYear - 1} stroke="#22C55E" strokeWidth={2} strokeDasharray="5 4" dot={false}/>
           </LineChart>
         </ResponsiveContainer>
       </div>
