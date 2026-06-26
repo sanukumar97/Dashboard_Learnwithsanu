@@ -708,7 +708,7 @@ export function Enrollment({ year, plan, search = "", onStudentClick }: Props) {
                       const planRecord = plans.find(p => p.slug === s.planSlug);
                       const planLimit = parseInt(planRecord?.session_limit ?? "0", 10);
                       const allSessionsDone = planLimit > 0 && s.sessionsAttended >= planLimit;
-                      const isFree   = planRecord?.form_type === "free";
+                      const isFree   = s.planPrice === 0;
                       const pay      = paymentStatus(s);
 
                       return (

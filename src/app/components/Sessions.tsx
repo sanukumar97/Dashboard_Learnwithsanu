@@ -392,7 +392,7 @@ export function Sessions({ year = "All Time", plan = "All Plans", search = "", o
                               className="font-semibold text-foreground hover:text-primary transition-colors text-left whitespace-nowrap" style={{ fontSize: 13 }}>
                               {s.name}
                             </button>
-                            {plans.find(p => p.slug === s.planSlug)?.form_type === "free" && (
+                            {s.planPrice === 0 && (
                               <span className="px-1.5 py-0.5 rounded-md font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 whitespace-nowrap" style={{ fontSize: 10 }}>
                                 Free
                               </span>
@@ -551,7 +551,7 @@ export function Sessions({ year = "All Time", plan = "All Plans", search = "", o
                               className="font-semibold text-foreground hover:text-primary transition-colors text-left whitespace-nowrap" style={{ fontSize: 13 }}>
                               {s.name}
                             </button>
-                            {plans.find(p => p.slug === s.planSlug)?.form_type === "free" && (
+                            {s.planPrice === 0 && (
                               <span className="px-1.5 py-0.5 rounded-md font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 whitespace-nowrap" style={{ fontSize: 10 }}>
                                 Free
                               </span>
@@ -662,7 +662,7 @@ export function Sessions({ year = "All Time", plan = "All Plans", search = "", o
                               className="font-semibold text-foreground hover:text-primary transition-colors text-left whitespace-nowrap" style={{ fontSize: 13 }}>
                               {s.name}
                             </button>
-                            {plans.find(p => p.slug === s.planSlug)?.form_type === "free" && (
+                            {s.planPrice === 0 && (
                               <span className="px-1.5 py-0.5 rounded-md font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 whitespace-nowrap" style={{ fontSize: 10 }}>
                                 Free
                               </span>

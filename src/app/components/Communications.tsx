@@ -109,7 +109,7 @@ export function Communications({ year = "All Time", plan = "All Plans", search =
     (!q || s.name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q))
   );
   const pendingCount = mailStudents.filter(s => {
-    const isFree = plans.find(p => p.slug === s.planSlug)?.form_type === "free";
+    const isFree = s.planPrice === 0;
     return !isFree && !s.mailSent;
   }).length;
   const mailTotalPages = Math.max(1, Math.ceil(mailStudents.length / MAIL_PAGE_SIZE));
@@ -333,7 +333,7 @@ export function Communications({ year = "All Time", plan = "All Plans", search =
                             <div className="flex items-center gap-3">
                               <Avatar name={s.name} color={s.avatarColor} size="sm" />
                               <span style={{ fontSize: 13 }} className="font-semibold text-foreground whitespace-nowrap">{s.name}</span>
-                              {plans.find(p => p.slug === s.planSlug)?.form_type === "free" && (
+                              {s.planPrice === 0 && (
                                 <span className="px-1.5 py-0.5 rounded-md font-bold bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400 whitespace-nowrap" style={{ fontSize: 10 }}>
                                   Free
                                 </span>
@@ -344,7 +344,7 @@ export function Communications({ year = "All Time", plan = "All Plans", search =
                           <td className="px-6 py-3.5 text-foreground" style={{ fontSize: 13 }}>{s.plan}</td>
                           <td className="px-6 py-3.5 text-muted-foreground whitespace-nowrap" style={{ fontSize: 12 }}>{s.enrolledDate}</td>
                           <td className="px-6 py-3.5">
-                            {plans.find(p => p.slug === s.planSlug)?.form_type === "free" ? (
+                            {s.planPrice === 0 ? (
                               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-medium dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800" style={{ fontSize: 11 }}>
                                 <CheckCircle size={11} /> Free
                               </span>
