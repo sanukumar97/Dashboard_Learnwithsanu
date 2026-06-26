@@ -103,11 +103,15 @@ export function Communications({ year = "All Time", plan = "All Plans", search =
 
   const q = search.trim().toLowerCase();
   const mailStudents = allS.filter(s =>
+    s.dbStatus === "submitted" && !!s.adminApprovedAt &&
     (year === "All Time" || new Date(s.enrolledDate).getFullYear() === parseInt(year)) &&
     (plan === "All Plans" || s.planSlug === plan) &&
     (!q || s.name.toLowerCase().includes(q) || s.email.toLowerCase().includes(q))
   );
-  const pendingCount = mailStudents.filter(s => !s.mailSent).length;
+  const pendingCount = mailStudents.filter(s => {
+    const isFree = plans.find(p => p.slug === s.planSlug)?.form_type === "free";
+    return !isFree && !s.mailSent;
+  }).length;
   const mailTotalPages = Math.max(1, Math.ceil(mailStudents.length / MAIL_PAGE_SIZE));
   const mailPageSafe = Math.min(mailPage, mailTotalPages);
   const mailPagedStudents = mailStudents.slice((mailPageSafe - 1) * MAIL_PAGE_SIZE, mailPageSafe * MAIL_PAGE_SIZE);
