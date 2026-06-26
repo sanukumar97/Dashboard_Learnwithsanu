@@ -291,8 +291,11 @@ export function Sessions({ year = "All Time", plan = "All Plans", search = "", o
         sessionTime: f.time,
         notes: f.notes || undefined,
       });
+      const fmtD = (d: string) => new Date(d + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
+      const fmtT = (t: string) => { const [h, m] = t.split(":"); const hr = parseInt(h); return `${String(hr % 12 || 12).padStart(2, "0")}:${m} ${hr >= 12 ? "PM" : "AM"}`; };
       await navigator.clipboard.writeText(
-        `Student: ${s.name}\nEmail: ${s.email}\nPhone: ${s.phone}\nDate: ${f.date}\nTime: ${f.time}${f.notes ? `\nNotes: ${f.notes}` : ""}`
+        `🎓 LearnWithSanu\n\n👤Name: ${s.name}\n📧Email: ${s.email}\n📱Phone: ${s.phone}\n\n📅Meeting Date: ${fmtD(f.date)}\n🕖Meeting Time: ${fmtT(f.time)}${f.notes ? `\n\n📝Note: ${f.notes}` : ""}\n✅Meeting Scheduled with Sanu Kumar`
+            
       );
     } catch (e) { console.error("saveSession failed:", e); }
     setPendingForm(p => { const n = { ...p }; delete n[id]; return n; });
@@ -336,8 +339,10 @@ export function Sessions({ year = "All Time", plan = "All Plans", search = "", o
     const s  = getS(id);
     if (!se || !s) return;
     const link = plans.find(p => p.slug === s.planSlug)?.gmeet_link ?? "";
+    const fmtD = (d: string) => new Date(d + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
+    const fmtT = (t: string) => { const [h, m] = t.split(":"); const hr = parseInt(h); return `${String(hr % 12 || 12).padStart(2, "0")}:${m} ${hr >= 12 ? "PM" : "AM"}`; };
     await navigator.clipboard.writeText(
-      `Student: ${s.name}\nEmail: ${s.email}\nPhone: ${s.phone}\nDate: ${se.date}\nTime: ${se.time}\nLink: ${link || "—"}${se.notes ? `\nNotes: ${se.notes}` : ""}`
+      `🎓 LearnWithSanu\n\n👤Name: ${s.name}\n📧Email: ${s.email}\n📱Phone: ${s.phone}\n\n📅Meeting Date: ${fmtD(se.date)}\n🕖Meeting Time: ${fmtT(se.time)}\n\n🔗Meeting Link: ${link || "—"}${se.notes ? `\n\n📝Note: ${se.notes}` : ""}\n✅Meeting Scheduled with Sanu Kumar`
     );
     setCopied(id);
     setTimeout(() => setCopied(null), 2000);
