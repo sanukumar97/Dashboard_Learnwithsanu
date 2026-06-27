@@ -6,6 +6,7 @@ import {
 import { Users, UserCheck, CalendarClock, Mail, TrendingUp, TrendingDown } from "lucide-react";
 import { useLiveEnrollments } from "../hooks/useLiveEnrollments";
 import { fetchAllPlansAdmin, type AdminPlan } from "../../services/planService";
+import { fetchMailLog } from "../../services/mailLogService";
 import { type Student, MONTHLY_LABELS } from "../data/liveDashboard";
 
 const PALETTE = ["#3B5BFF","#8B5CF6","#22C55E","#F59E0B","#EF4444","#06B6D4","#F43F5E","#84CC16"];
@@ -66,6 +67,7 @@ export function Analytics({ year, plan, onStudentClick }: {
 }) {
   const { students: allStudents } = useLiveEnrollments();
   const [plans, setPlans] = useState<AdminPlan[]>([]);
+  const [mailedIds, setMailedIds] = useState<Set<string>>(new Set());
   const [drillCell, setDrillCell] = useState<{ planSlug: string; month: string } | null>(null);
   const [barView, setBarView] = useState<"grouped" | "stacked">("grouped");
 
@@ -75,6 +77,7 @@ export function Analytics({ year, plan, onStudentClick }: {
 
   useEffect(() => {
     fetchAllPlansAdmin().then(all => setPlans(all.filter(p => p.is_active)));
+    fetchMailLog().then(log => setMailedIds(new Set(log.map(m => m.enrollmentId).filter(Boolean) as string[])));
   }, []);
 
   const planColor = (slug: string) => {
@@ -103,8 +106,9 @@ export function Analytics({ year, plan, onStudentClick }: {
   const added     = filtered.filter(s => new Date(s.enrolledDate).getMonth() === thisM).length;
   const sched     = filtered.filter(s => s.status === "Scheduled").length;
   const unpend    = filtered.filter(s => !!s.adminApprovedAt && !s.sessionDate).length;
-  const mails     = filtered.filter(s => s.mailSent).length;
-  const openR     = total > 0 ? Math.round((mails / total) * 100) : 0;
+  const allApprovedPlan = approvedStudents.filter(s => plan === "All Plans" || s.planSlug === plan);
+  const mails     = allApprovedPlan.filter(s => mailedIds.has(s.id)).length;
+  const openR     = allApprovedPlan.length > 0 ? Math.round((mails / allApprovedPlan.length) * 100) : 0;
 
   function getMonthly(yr: number | null, pFilter: string) {
     return MONTHLY_LABELS.map((month, i) => ({
