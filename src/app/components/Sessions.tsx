@@ -267,9 +267,22 @@ export function Sessions({ year = "All Time", plan = "All Plans", search = "", o
   );
   const pendingQ = approvedStudents.filter(s => !s.sessionDate);
 
+  const pendingFiltered = pendingQ.filter(s => {
+    if (sessionRange === "custom") {
+      if (appliedFrom || appliedTo) {
+        const d = new Date(s.enrolledDate + "T00:00:00");
+        if (appliedFrom && d < new Date(appliedFrom + "T00:00:00")) return false;
+        if (appliedTo   && d > new Date(appliedTo   + "T23:59:59")) return false;
+      }
+      return true;
+    }
+    if (sessionRange !== "all") return matchesRange(s.enrolledDate, sessionRange);
+    return true;
+  });
+
   const counts: Record<STab, number> = {
     scheduled: scheduled.length,
-    pending:   pendingQ.length,
+    pending:   pendingFiltered.length,
     completed: completed.length,
   };
 
@@ -529,10 +542,10 @@ export function Sessions({ year = "All Time", plan = "All Plans", search = "", o
           </div>
         </div>
         <span className="px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-700 font-medium dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-900" style={{ fontSize: 12 }}>
-          {pendingQ.length} pending
+          {pendingFiltered.length} pending
         </span>
       </div>
-      {pendingQ.length === 0 ? (
+      {pendingFiltered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
           <CheckCircle size={36} className="text-emerald-400 opacity-70" />
           <p style={{ fontSize: 13 }}>All Free 1-on-1 students have sessions booked!</p>
@@ -542,7 +555,7 @@ export function Sessions({ year = "All Time", plan = "All Plans", search = "", o
           <table className="w-full">
             <TH cols={["Name", "Contact", "Email", "Pick Date", "Pick Time", "Add Notes", "Action"]} />
             <tbody>
-              {pendingQ.map(s => {
+              {pendingFiltered.map(s => {
                 const f    = pendingForm[s.id] || { date: "", time: "", notes: "" };
                 const isSaved = savedFlash === s.id;
                 return (
@@ -750,8 +763,7 @@ export function Sessions({ year = "All Time", plan = "All Plans", search = "", o
         </div>
 
         {/* Right group: filter controls — w-full on mobile forces to new row */}
-        {activeTab !== "pending" && (
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
             {/* Range dropdown */}
             <RangeDropdown
               value={sessionRange}
@@ -790,7 +802,6 @@ export function Sessions({ year = "All Time", plan = "All Plans", search = "", o
               </div>
             )}
           </div>
-        )}
       </div>
 
       {/* ── CONTENT ───────────────────────────────────────────── */}
