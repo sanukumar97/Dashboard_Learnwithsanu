@@ -76,6 +76,15 @@ function getFields(raw: Record<string, unknown> | null): Array<{ label: string; 
     });
 }
 
+// Extract the actual date from a form field value (looks for YYYY-MM-DD in any field labeled "date" or "today")
+function getFormDate(r: FeedbackRow): string {
+  const fields = getFields(r.raw_payload);
+  const dateField = fields.find(f =>
+    /date|today/i.test(f.label) && /^\d{4}-\d{2}-\d{2}$/.test(f.value)
+  );
+  return dateField?.value ?? r.submitted_at;
+}
+
 const AV_COLORS = [C.blue, C.purple, C.green, C.amber, C.red];
 
 function ratingToStars(r: string | null): number {
@@ -99,7 +108,7 @@ function Stars({ n }: { n: number }) {
 
 // ── Feedback Tab ───────────────────────────────────────────────────────────────
 
-export function Feedback() {
+export function Feedback({ year }: { year: string }) {
   const [selectedForm,  setSelectedForm]  = useState("0QGLL9");
   const [page,          setPage]          = useState(1);
   const [feedbackRows,  setFeedbackRows]  = useState<FeedbackRow[]>([]);
@@ -170,22 +179,22 @@ export function Feedback() {
 
   const total = feedbackRows.length;
 
-  // Filter by selected form then by date range
+  const isAllTime = year === "All Time";
+  const yearNum   = isAllTime ? null : parseInt(year);
+
+  // Filter by year, selected form, then by date range — using the form's actual date field
   const filteredRows = feedbackRows.filter(r => {
+    const fd = getFormDate(r);
+    // year filter
+    if (!isAllTime && new Date(fd).getFullYear() !== yearNum!) return false;
     // form filter
     if (selectedForm !== "all") {
       const fid = (r.raw_payload?.data as Record<string, unknown> | undefined)?.formId as string | undefined;
       if (fid !== selectedForm) return false;
     }
     // date range filter (inclusive)
-    if (appliedFrom) {
-      const d = new Date(r.submitted_at);
-      if (d < new Date(appliedFrom + "T00:00:00")) return false;
-    }
-    if (appliedTo) {
-      const d = new Date(r.submitted_at);
-      if (d > new Date(appliedTo + "T23:59:59")) return false;
-    }
+    if (appliedFrom && new Date(fd) < new Date(appliedFrom + "T00:00:00")) return false;
+    if (appliedTo   && new Date(fd) > new Date(appliedTo   + "T23:59:59")) return false;
     return true;
   });
 
@@ -201,16 +210,12 @@ export function Feedback() {
   const pagedRows  = filteredRows.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   function exportCSV() {
-    const headers = ["#", "Date", ...allLabels];
+    const headers = ["#", ...allLabels];
     const rows = filteredRows.map((r, idx) => {
       const fields   = getFields(r.raw_payload);
       const fieldMap = Object.fromEntries(fields.map(f => [f.label, f.value]));
-      const date     = r.submitted_at
-        ? new Date(r.submitted_at).toLocaleDateString("en-IN", { day:"numeric", month:"short", year:"numeric" })
-        : "";
       const cols = [
         String(idx + 1),
-        date,
         ...allLabels.map(l => fieldMap[l] ?? ""),
       ];
       // Wrap cells that contain commas/quotes/newlines
@@ -377,12 +382,6 @@ export function Feedback() {
                         <div onMouseDown={e => startResize("#", e)}
                           className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-primary/40 select-none" />
                       </th>
-                      <th className="relative px-4 py-3 text-left"
-                        style={{ width: colWidths["date"] ?? 120, minWidth: 90 }}>
-                        <span className="font-semibold text-muted-foreground uppercase" style={{ fontSize: 11, letterSpacing: "0.07em" }}>Date</span>
-                        <div onMouseDown={e => startResize("date", e)}
-                          className="absolute right-0 top-0 h-full w-1.5 cursor-col-resize hover:bg-primary/40 select-none" />
-                      </th>
                       {allLabels.map(label => (
                         <th key={label} className="relative px-4 py-3 text-left"
                           style={{ width: colWidths[label] ?? 180, minWidth: 90 }}>
@@ -397,9 +396,6 @@ export function Feedback() {
                     {pagedRows.map((r, idx) => {
                       const fields   = getFields(r.raw_payload);
                       const fieldMap = Object.fromEntries(fields.map(f => [f.label, f.value]));
-                      const date     = r.submitted_at
-                        ? new Date(r.submitted_at).toLocaleDateString("en-IN", { day:"numeric", month:"short", year:"numeric" })
-                        : "–";
                       const rowNum   = (safePage - 1) * PAGE_SIZE + idx + 1;
                       const color    = AV_COLORS[idx % AV_COLORS.length];
                       return (
@@ -409,8 +405,6 @@ export function Feedback() {
                             <div className="w-6 h-6 rounded-full flex items-center justify-center text-white font-bold"
                               style={{ background: color, fontSize: 10 }}>{rowNum}</div>
                           </td>
-                          <td className="px-4 py-3 align-top text-muted-foreground whitespace-nowrap"
-                            style={{ width: colWidths["date"] ?? 120, fontSize: 13 }}>{date}</td>
                           {allLabels.map(label => {
                             const val      = fieldMap[label] ?? "–";
                             const isRating = ["worst","bad","average","best"].includes(val.toLowerCase());

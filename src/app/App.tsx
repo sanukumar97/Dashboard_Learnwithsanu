@@ -469,7 +469,7 @@ export default function App() {
               {tab === "enrollment"    && <Enrollment    year={year} plan={plan} search={search} onStudentClick={setProfileStudent}/>}
               {tab === "analytics"     && <Analytics     year={year} plan={plan} onStudentClick={setProfileStudent}/>}
               {tab === "earnings"      && <Earnings      year={year} plan={plan}/>}
-              {tab === "feedback"      && <Feedback/>}
+              {tab === "feedback"      && <Feedback year={year}/>}
             </main>
           </div>
         </div>
