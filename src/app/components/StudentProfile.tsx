@@ -120,6 +120,7 @@ export function StudentProfile({ student, onClose }: Props) {
           <div className="rounded-2xl bg-muted p-4">
             <p style={{ fontSize: 10 }} className="mb-1.5 text-muted-foreground uppercase tracking-wide font-semibold">Enrollment Details</p>
             <div className="space-y-2 text-sm text-foreground">
+              <p><strong>Enrolled On:</strong> {student.enrolledDate ? new Date(student.enrolledDate + "T00:00:00").toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) : "Not available"}</p>
               {!student.planSlug.startsWith("free-") && (
                 <p><strong>UTR:</strong> {student.utrNumber || "Not provided"}</p>
               )}
