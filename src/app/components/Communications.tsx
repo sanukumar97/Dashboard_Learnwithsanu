@@ -447,14 +447,22 @@ export function Communications({ year = "All Time", plan = "All Plans", search =
         {/* ── MAIL LOG ──────────────────────────────────────────── */}
         {activeTab === "log" && (
           <CardWrap>
+            {(() => {
+              const filteredLog = log.filter(l => {
+                if (plan === "All Plans") return true;
+                const student = allS.find(s => s.id === l.enrollmentId);
+                return student?.planSlug === plan;
+              });
+              return (
+            <>
             <div className="flex items-center justify-between px-6 py-4 border-b border-border">
               <h3 className="text-foreground">Mail Log</h3>
               <div className="flex items-center gap-3" style={{ fontSize: 12 }}>
-                <span className="text-muted-foreground">{log.filter(l => l.status === "Scheduled").length} scheduled</span>
-                <span className="text-muted-foreground">{log.length} total</span>
+                <span className="text-muted-foreground">{filteredLog.filter(l => l.status === "Scheduled").length} scheduled</span>
+                <span className="text-muted-foreground">{filteredLog.length} total</span>
               </div>
             </div>
-            {log.length === 0 ? (
+            {filteredLog.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 gap-3 text-muted-foreground">
                 <Mail size={36} className="opacity-20" />
                 <p style={{ fontSize: 13 }}>No emails yet</p>
@@ -464,7 +472,7 @@ export function Communications({ year = "All Time", plan = "All Plans", search =
                 <table className="w-full">
                   <THead cols={["Sent To", "Template", "Date / Scheduled For", "Status", "Action"]} />
                   <tbody>
-                    {log.map(l => (
+                    {filteredLog.map(l => (
                       <tr key={l.id} className={`border-b border-border last:border-0 hover:bg-muted/20 transition-colors ${
                         l.status === "Failed"    ? "bg-red-50/30 dark:bg-red-950/10" :
                         l.status === "Scheduled" ? "bg-blue-50/30 dark:bg-blue-950/10" : ""
@@ -596,6 +604,9 @@ export function Communications({ year = "All Time", plan = "All Plans", search =
                 )}
               </div>
             )}
+            </>
+              );
+            })()}
           </CardWrap>
         )}
 
