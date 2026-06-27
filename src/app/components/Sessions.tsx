@@ -207,6 +207,7 @@ export function Sessions({ year = "All Time", plan = "All Plans", search = "", o
   const [reschedForm, setReschedForm] = useState({ date: "", time: "" });
   const [copied, setCopied]           = useState<string | null>(null);
   const [savedFlash, setSavedFlash]   = useState<string | null>(null);
+  const [processing, setProcessing]   = useState<string | null>(null);
   const [sessionRange, setSessionRange] = useState<SessionRange>("all");
   const [customFrom,  setCustomFrom]  = useState("");
   const [customTo,    setCustomTo]    = useState("");
@@ -330,6 +331,8 @@ export function Sessions({ year = "All Time", plan = "All Plans", search = "", o
   }
 
   async function markDone(id: string) {
+    if (processing === id) return;
+    setProcessing(id);
     const s = getS(id);
     const planLimit = parseInt(plans.find(p => p.slug === s?.planSlug)?.session_limit ?? "0", 10);
     const newCount = (s?.sessionsAttended ?? 0) + 1;
@@ -337,14 +340,13 @@ export function Sessions({ year = "All Time", plan = "All Plans", search = "", o
     try {
       await incrementSessionsAttended(id);
       if (isFullyDone) {
-        // Final session — mark permanently complete, renewal alert fires
         await updateEnrollmentSession(id, { sessionCompleted: true });
       } else {
-        // More sessions remaining — reset back to Pending Sessions for next schedule
         await resetEnrollmentSession(id);
       }
     } catch (e) { console.error("markDone failed:", e); }
     await refresh();
+    setProcessing(null);
   }
 
   async function copyAndSave(id: string) {
@@ -504,9 +506,10 @@ export function Sessions({ year = "All Time", plan = "All Plans", search = "", o
                           <RotateCcw size={11} /> Reschedule
                         </button>
                         <button onClick={() => markDone(se.studentId)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500 text-white hover:opacity-90 transition-all whitespace-nowrap font-medium shadow-sm"
+                          disabled={processing === se.studentId}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500 text-white hover:opacity-90 transition-all whitespace-nowrap font-medium shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
                           style={{ fontSize: 12, boxShadow: "0 2px 6px rgba(34,197,94,0.3)" }}>
-                          <CheckCircle size={11} /> Mark Done
+                          <CheckCircle size={11} /> {processing === se.studentId ? "Saving…" : "Mark Done"}
                         </button>
                       </div>
                     </td>
