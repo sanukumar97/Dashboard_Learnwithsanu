@@ -50,8 +50,8 @@ export function Earnings({ year, plan }: { year: string; plan: string }) {
   const [appliedTo,    setAppliedTo]    = useState("");
   const filterRef = useRef<HTMLDivElement>(null);
 
-  // Revenue tab always uses a specific year; "All Time" falls back to current year
-  const effectiveYear = year === "All Time" ? new Date().getFullYear() : parseInt(year);
+  const isAllTime = year === "All Time";
+  const yearNum   = isAllTime ? null : parseInt(year);
 
   useEffect(() => {
     fetchAllPlansAdmin().then(setPlans);
@@ -75,7 +75,6 @@ export function Earnings({ year, plan }: { year: string; plan: string }) {
     return PALETTE[(idx >= 0 ? idx : 0) % PALETTE.length];
   };
 
-  // Only approved (onboarded) students count toward revenue
   const approvedBase = allStudents.filter(s =>
     s.dbStatus === "submitted" && !!s.adminApprovedAt &&
     (plan === "All Plans" || s.planSlug === plan)
@@ -88,44 +87,60 @@ export function Earnings({ year, plan }: { year: string; plan: string }) {
     return true;
   }
 
-  // Total Revenue — all approved students, all time (date range filter applies)
+  // Total Revenue — all approved students, all time
   const totalBase    = approvedBase.filter(inDateRange);
   const totalRevenue = totalBase.reduce((sum, s) => sum + s.planPrice, 0);
 
-  // Yearly Revenue — approved students in the effective year
-  const yearlyBase    = approvedBase.filter(s => new Date(s.enrolledDate).getFullYear() === effectiveYear && inDateRange(s));
+  // Yearly Revenue — year-specific (or same as total when All Time)
+  const yearlyBase    = isAllTime
+    ? totalBase
+    : approvedBase.filter(s => new Date(s.enrolledDate).getFullYear() === yearNum! && inDateRange(s));
   const yearlyRevenue = yearlyBase.reduce((sum, s) => sum + s.planPrice, 0);
 
-  // Previous year for YoY comparison
-  const prevYearBase    = approvedBase.filter(s => new Date(s.enrolledDate).getFullYear() === effectiveYear - 1);
-  const prevRevenue     = prevYearBase.reduce((sum, s) => sum + s.planPrice, 0);
-  const revenueGrowth   = prevRevenue > 0 ? Math.round(((yearlyRevenue - prevRevenue) / prevRevenue) * 100) : 0;
+  const prevYearBase  = isAllTime ? [] : approvedBase.filter(s => new Date(s.enrolledDate).getFullYear() === yearNum! - 1);
+  const prevRevenue   = prevYearBase.reduce((sum, s) => sum + s.planPrice, 0);
+  const revenueGrowth = (!isAllTime && prevRevenue > 0) ? Math.round(((yearlyRevenue - prevRevenue) / prevRevenue) * 100) : null;
 
-  const monthlyRevenue = yearlyRevenue / 12;
-  const avgRevenue     = yearlyRevenue / Math.max(yearlyBase.length, 1);
+  // Monthly avg: all-time = total / months of operation; specific year = yearly / 12
+  const monthlyRevenue = isAllTime
+    ? (() => {
+        if (!totalBase.length) return 0;
+        const first = new Date(Math.min(...totalBase.map(s => new Date(s.enrolledDate).getTime())));
+        const now   = new Date();
+        const months = (now.getFullYear() - first.getFullYear()) * 12 + now.getMonth() - first.getMonth() + 1;
+        return totalRevenue / Math.max(months, 1);
+      })()
+    : yearlyRevenue / 12;
 
-  function getMonthlyRevenue(y: number, pFilter: string) {
+  // Avg per student: all-time = total / all students; specific year = yearly / year students
+  const revenueBase = isAllTime ? totalBase : yearlyBase;
+  const avgRevenue  = totalRevenue > 0 ? revenueBase.reduce((sum, s) => sum + s.planPrice, 0) / Math.max(revenueBase.length, 1) : 0;
+
+  function getMonthlyRevenue(yr: number | null, pFilter: string) {
     return MONTHLY_LABELS.map((month, i) => ({
       month,
       revenue: approvedBase.filter(s => {
         const d = new Date(s.enrolledDate);
-        return d.getFullYear() === y && d.getMonth() === i && (pFilter === "All Plans" || s.planSlug === pFilter);
+        return (yr === null || d.getFullYear() === yr) && d.getMonth() === i &&
+          (pFilter === "All Plans" || s.planSlug === pFilter);
       }).reduce((sum, s) => sum + s.planPrice, 0),
     }));
   }
 
-  const monthly     = getMonthlyRevenue(effectiveYear, plan);
-  const monthlyPrev = getMonthlyRevenue(effectiveYear - 1, plan);
+  const monthly     = getMonthlyRevenue(yearNum, plan);
+  const monthlyPrev = isAllTime ? null : getMonthlyRevenue(yearNum! - 1, plan);
 
   const monthlyTrend = MONTHLY_LABELS.map((month, i) => ({
     month,
-    [effectiveYear]:     monthly[i].revenue,
-    [effectiveYear - 1]: monthlyPrev[i].revenue,
+    ...(isAllTime
+      ? { "All Time": monthly[i].revenue }
+      : { [yearNum!]: monthly[i].revenue, [yearNum! - 1]: monthlyPrev![i].revenue }
+    ),
   }));
 
-  /* Plan-wise breakdown — based on yearly approved students */
+  /* Plan-wise breakdown */
   const planWise = plans.map((p, i) => {
-    const planStudents = yearlyBase.filter(s => s.planSlug === p.slug);
+    const planStudents = revenueBase.filter(s => s.planSlug === p.slug);
     return {
       slug:    p.slug,
       color:   PALETTE[i % PALETTE.length],
@@ -134,23 +149,37 @@ export function Earnings({ year, plan }: { year: string; plan: string }) {
     };
   }).filter(p => p.count > 0);
 
-  /* Revenue prediction — rates derived from actual YoY data when available */
-  const year2Revenue = approvedBase
-    .filter(s => new Date(s.enrolledDate).getFullYear() === effectiveYear - 2)
+  /* Year-wise summary */
+  const yearData = isAllTime
+    ? (() => {
+        const ys = [...new Set(approvedBase.map(s => new Date(s.enrolledDate).getFullYear()))].sort();
+        return ys.map(y => ({
+          year: String(y),
+          revenue: approvedBase.filter(s => new Date(s.enrolledDate).getFullYear() === y).reduce((sum, s) => sum + s.planPrice, 0),
+        }));
+      })()
+    : [yearNum! - 2, yearNum! - 1, yearNum!].map(y => ({
+        year: String(y),
+        revenue: approvedBase.filter(s => new Date(s.enrolledDate).getFullYear() === y).reduce((sum, s) => sum + s.planPrice, 0),
+      }));
+
+  /* Revenue prediction — only for specific year */
+  const year2Revenue = isAllTime ? 0 : approvedBase
+    .filter(s => new Date(s.enrolledDate).getFullYear() === yearNum! - 2)
     .reduce((sum, s) => sum + s.planPrice, 0);
 
-  const g1 = year2Revenue > 0 && prevRevenue > 0
+  const g1 = !isAllTime && year2Revenue > 0 && prevRevenue > 0
     ? (prevRevenue - year2Revenue) / year2Revenue
     : null;
-  const g2 = prevRevenue > 0 && yearlyRevenue > 0
+  const g2 = !isAllTime && prevRevenue > 0 && yearlyRevenue > 0
     ? (yearlyRevenue - prevRevenue) / prevRevenue
     : null;
 
   function clampRate(r: number) { return Math.min(Math.max(r, -0.30), 0.80); }
 
-  let growthRate1: number;
-  let growthRate2: number;
-  let rateSource: "actual" | "partial" | "default";
+  let growthRate1 = 0.22;
+  let growthRate2 = 0.25;
+  let rateSource: "actual" | "partial" | "default" = "default";
 
   if (g1 !== null && g2 !== null) {
     const derived = g1 * 0.4 + g2 * 0.6;
@@ -161,30 +190,18 @@ export function Earnings({ year, plan }: { year: string; plan: string }) {
     growthRate1 = clampRate(g2);
     growthRate2 = clampRate(g2);
     rateSource = "partial";
-  } else {
-    growthRate1 = 0.22;
-    growthRate2 = 0.25;
-    rateSource = "default";
   }
 
   const pct1 = Math.round(growthRate1 * 100);
   const pct2 = Math.round(growthRate2 * 100);
   const prediction1 = Math.round(yearlyRevenue * (1 + growthRate1));
   const prediction2 = Math.round(prediction1   * (1 + growthRate2));
-  const predData = [
-    { year: String(effectiveYear - 1), revenue: prevRevenue,   fill: "#C7D0FF" },
-    { year: String(effectiveYear),     revenue: yearlyRevenue, fill: "#3B5BFF" },
-    { year: String(effectiveYear + 1), revenue: prediction1,   fill: "#7E9BFF", predicted: true },
-    { year: String(effectiveYear + 2), revenue: prediction2,   fill: "#A5B4FF", predicted: true },
+  const predData = isAllTime ? [] : [
+    { year: String(yearNum! - 1), revenue: prevRevenue,   fill: "#C7D0FF" },
+    { year: String(yearNum!),     revenue: yearlyRevenue, fill: "#3B5BFF" },
+    { year: String(yearNum! + 1), revenue: prediction1,   fill: "#7E9BFF", predicted: true },
+    { year: String(yearNum! + 2), revenue: prediction2,   fill: "#A5B4FF", predicted: true },
   ];
-
-  /* Year-wise summary (last 3 years) — approved only */
-  const yearData = [effectiveYear - 2, effectiveYear - 1, effectiveYear].map(y => ({
-    year: String(y),
-    revenue: approvedBase
-      .filter(s => new Date(s.enrolledDate).getFullYear() === y)
-      .reduce((sum, s) => sum + s.planPrice, 0),
-  }));
 
   const KpiCard = ({ title, value, sub, icon: Icon, accent, pct }: any) => (
     <div className="bg-card rounded-3xl p-5 flex flex-col gap-4" style={{ boxShadow: "var(--shadow-card)" }}>
@@ -197,7 +214,7 @@ export function Earnings({ year, plan }: { year: string; plan: string }) {
       <div>
         <p className="font-bold text-foreground" style={{ fontSize: 28, lineHeight: 1 }}>{value}</p>
         {sub && <p style={{ fontSize: 12 }} className="text-muted-foreground mt-2">{sub}</p>}
-        {pct !== undefined && (
+        {pct !== undefined && pct !== null && (
           <div className="flex items-center gap-1.5 mt-2">
             <TrendingUp size={13} className={pct >= 0 ? "text-emerald-500" : "text-red-500"}/>
             <span style={{ fontSize: 12 }} className={pct >= 0 ? "text-emerald-600 font-medium" : "text-red-500 font-medium"}>
@@ -212,7 +229,7 @@ export function Earnings({ year, plan }: { year: string; plan: string }) {
   return (
     <div className="p-5 flex flex-col gap-5">
 
-      {/* Header — title + Filter button */}
+      {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div>
           <h2 className="text-foreground font-bold" style={{ fontSize: 20 }}>Revenue</h2>
@@ -256,7 +273,6 @@ export function Earnings({ year, plan }: { year: string; plan: string }) {
                   </button>
                 )}
               </div>
-
               <div className="space-y-2.5">
                 <div className="space-y-1">
                   <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">From</label>
@@ -267,7 +283,6 @@ export function Earnings({ year, plan }: { year: string; plan: string }) {
                   <CalendarPicker value={dateTo} onChange={setDateTo} compact placeholder="dd/mm/yyyy" align="right" />
                 </div>
               </div>
-
               <div className="flex gap-2 pt-1">
                 <button onClick={() => setFilterOpen(false)}
                   className="flex-1 py-2 rounded-xl text-[11px] font-medium border border-border text-muted-foreground hover:bg-muted transition-colors">
@@ -284,13 +299,35 @@ export function Earnings({ year, plan }: { year: string; plan: string }) {
         </div>
       </div>
 
-
-      {/* KPI row */}
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-        <KpiCard title="Total Revenue"   value={fmtFull(Math.round(totalRevenue))}   sub={`${totalBase.length} onboarded students`}    icon={RupeeIcon}  accent="#3B5BFF"/>
-        <KpiCard title="Yearly Revenue"  value={fmtFull(Math.round(yearlyRevenue))}  pct={revenueGrowth} sub={`${effectiveYear} only`} icon={BarChart2}  accent="#8B5CF6"/>
-        <KpiCard title="Monthly Avg"     value={fmtFull(Math.round(monthlyRevenue))} sub="Average per month this year"                 icon={Calendar}   accent="#22C55E"/>
-        <KpiCard title="Avg per Student" value={fmtFull(Math.round(avgRevenue))}     sub={`From ${yearlyBase.length} students`}        icon={TrendingUp} accent="#F59E0B"/>
+      {/* KPI row — Yearly Revenue hidden when All Time */}
+      <div className={`grid gap-4 ${isAllTime ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-2 xl:grid-cols-4"}`}>
+        <KpiCard
+          title="Total Revenue"
+          value={fmtFull(Math.round(totalRevenue))}
+          sub={`${totalBase.length} onboarded students`}
+          icon={RupeeIcon} accent="#3B5BFF"
+        />
+        {!isAllTime && (
+          <KpiCard
+            title="Yearly Revenue"
+            value={fmtFull(Math.round(yearlyRevenue))}
+            pct={revenueGrowth}
+            sub={`${yearNum} only`}
+            icon={BarChart2} accent="#8B5CF6"
+          />
+        )}
+        <KpiCard
+          title="Monthly Avg"
+          value={fmtFull(Math.round(monthlyRevenue))}
+          sub={isAllTime ? "Avg per month (all time)" : "Average per month this year"}
+          icon={Calendar} accent="#22C55E"
+        />
+        <KpiCard
+          title="Avg per Student"
+          value={fmtFull(Math.round(avgRevenue))}
+          sub={`From ${revenueBase.length} students`}
+          icon={TrendingUp} accent="#F59E0B"
+        />
       </div>
 
       {/* Monthly revenue area chart */}
@@ -299,8 +336,14 @@ export function Earnings({ year, plan }: { year: string; plan: string }) {
           <div>
             <h3 className="text-foreground">Monthly Revenue</h3>
             <p style={{ fontSize: 12 }} className="text-muted-foreground mt-0.5">
-              <span className="text-primary font-medium">—</span> {effectiveYear} &nbsp;
-              <span className="text-purple-400 font-medium">- -</span> {effectiveYear - 1}
+              {isAllTime ? (
+                <span className="text-primary font-medium">All Time (aggregated by month)</span>
+              ) : (
+                <>
+                  <span className="text-primary font-medium">—</span> {yearNum} &nbsp;
+                  <span className="text-purple-400 font-medium">- -</span> {yearNum! - 1}
+                </>
+              )}
             </p>
           </div>
         </div>
@@ -320,8 +363,14 @@ export function Earnings({ year, plan }: { year: string; plan: string }) {
             <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false}/>
             <YAxis tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={60} tickFormatter={v => fmt(v)}/>
             <Tooltip content={<Tip/>}/>
-            <Area type="monotone" dataKey={effectiveYear}     stroke="#3B5BFF" strokeWidth={2.5} fill="url(#grad1)" dot={false}/>
-            <Area type="monotone" dataKey={effectiveYear - 1} stroke="#8B5CF6" strokeWidth={2} strokeDasharray="5 4" fill="url(#grad2)" dot={false}/>
+            {isAllTime ? (
+              <Area type="monotone" dataKey="All Time" stroke="#3B5BFF" strokeWidth={2.5} fill="url(#grad1)" dot={false}/>
+            ) : (
+              <>
+                <Area type="monotone" dataKey={yearNum!}     stroke="#3B5BFF" strokeWidth={2.5} fill="url(#grad1)" dot={false}/>
+                <Area type="monotone" dataKey={yearNum! - 1} stroke="#8B5CF6" strokeWidth={2} strokeDasharray="5 4" fill="url(#grad2)" dot={false}/>
+              </>
+            )}
           </AreaChart>
         </ResponsiveContainer>
       </div>
@@ -378,57 +427,61 @@ export function Earnings({ year, plan }: { year: string; plan: string }) {
         </div>
       </div>
 
-      {/* Prediction */}
-      <div className="bg-card rounded-3xl p-5" style={{ boxShadow: "var(--shadow-card)" }}>
-        <div className="flex items-center gap-2 mb-1">
-          <Sparkles size={16} className="text-primary"/>
-          <h3 className="text-foreground">Revenue Prediction</h3>
-        </div>
-        <p style={{ fontSize: 12 }} className="text-muted-foreground mb-5">
-          Projected growth at {pct1}% ({effectiveYear + 1}) and {pct2}% ({effectiveYear + 2})
-          {" · "}
-          {rateSource === "actual"  && "rates derived from 2 years of actual data"}
-          {rateSource === "partial" && "rate derived from last year's actual growth"}
-          {rateSource === "default" && "default estimate — not enough historical data yet"}
-        </p>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <div className="lg:col-span-2">
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={predData} barSize={50}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false}/>
-                <XAxis dataKey="year" tick={{ fontSize: 12, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false}/>
-                <YAxis tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={65} tickFormatter={v => fmt(v)}/>
-                <Tooltip content={<Tip/>}/>
-                <Bar dataKey="revenue" radius={[10, 10, 0, 0]}>
-                  {predData.map((d, i) => <Cell key={i} fill={d.fill}/>)}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+      {/* Prediction — only for specific year */}
+      {!isAllTime && (
+        <div className="bg-card rounded-3xl p-5" style={{ boxShadow: "var(--shadow-card)" }}>
+          <div className="flex items-center gap-2 mb-1">
+            <Sparkles size={16} className="text-primary"/>
+            <h3 className="text-foreground">Revenue Prediction</h3>
           </div>
-          <div className="flex flex-col gap-3">
-            {[
-              { year: effectiveYear + 1, value: prediction1, growth: pct1, color: "#7E9BFF" },
-              { year: effectiveYear + 2, value: prediction2, growth: pct2, color: "#A5B4FF" },
-            ].map(p => (
-              <div key={p.year} className="rounded-2xl p-4" style={{ background: p.color + "18", border: `1px solid ${p.color}44` }}>
-                <div className="flex items-center gap-2 mb-2">
-                  <Sparkles size={13} style={{ color: p.color }}/>
-                  <p style={{ fontSize: 12, color: p.color }} className="font-semibold">Projected {p.year}</p>
+          <p style={{ fontSize: 12 }} className="text-muted-foreground mb-5">
+            Projected growth at {pct1}% ({yearNum! + 1}) and {pct2}% ({yearNum! + 2})
+            {" · "}
+            {rateSource === "actual"  && "rates derived from 2 years of actual data"}
+            {rateSource === "partial" && "rate derived from last year's actual growth"}
+            {rateSource === "default" && "default estimate — not enough historical data yet"}
+          </p>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="lg:col-span-2">
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={predData} barSize={50}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false}/>
+                  <XAxis dataKey="year" tick={{ fontSize: 12, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false}/>
+                  <YAxis tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={65} tickFormatter={v => fmt(v)}/>
+                  <Tooltip content={<Tip/>}/>
+                  <Bar dataKey="revenue" radius={[10, 10, 0, 0]}>
+                    {predData.map((d, i) => <Cell key={i} fill={d.fill}/>)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="flex flex-col gap-3">
+              {[
+                { year: yearNum! + 1, value: prediction1, growth: pct1, color: "#7E9BFF" },
+                { year: yearNum! + 2, value: prediction2, growth: pct2, color: "#A5B4FF" },
+              ].map(p => (
+                <div key={p.year} className="rounded-2xl p-4" style={{ background: p.color + "18", border: `1px solid ${p.color}44` }}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Sparkles size={13} style={{ color: p.color }}/>
+                    <p style={{ fontSize: 12, color: p.color }} className="font-semibold">Projected {p.year}</p>
+                  </div>
+                  <p className="font-bold text-foreground" style={{ fontSize: 22, lineHeight: 1 }}>{fmtFull(p.value)}</p>
+                  <p style={{ fontSize: 11 }} className="text-muted-foreground mt-1.5">
+                    {p.growth >= 0 ? "+" : ""}{p.growth}% {rateSource === "default" ? "estimated" : "based on actuals"}
+                  </p>
                 </div>
-                <p className="font-bold text-foreground" style={{ fontSize: 22, lineHeight: 1 }}>{fmtFull(p.value)}</p>
-                <p style={{ fontSize: 11 }} className="text-muted-foreground mt-1.5">
-                  {p.growth >= 0 ? "+" : ""}{p.growth}% {rateSource === "default" ? "estimated" : "based on actuals"}
-                </p>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Month-wise breakdown table */}
       <div className="bg-card rounded-3xl overflow-hidden" style={{ boxShadow: "var(--shadow-card)" }}>
         <div className="px-6 py-4 border-b border-border">
-          <h3 className="text-foreground">Month-wise Revenue Breakdown — {effectiveYear}</h3>
+          <h3 className="text-foreground">
+            Month-wise Revenue Breakdown{isAllTime ? " — All Time" : ` — ${yearNum}`}
+          </h3>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -445,7 +498,7 @@ export function Earnings({ year, plan }: { year: string; plan: string }) {
               {monthly.map((m, i) => {
                 const prevRev = i > 0 ? monthly[i - 1].revenue : 0;
                 const pctChange = prevRev > 0 ? Math.round(((m.revenue - prevRev) / prevRev) * 100) : 0;
-                const studentCount = yearlyBase.filter(s => new Date(s.enrolledDate).getMonth() === i).length;
+                const studentCount = revenueBase.filter(s => new Date(s.enrolledDate).getMonth() === i).length;
                 const avgPerStu = studentCount > 0 ? Math.round(m.revenue / studentCount) : 0;
                 return (
                   <tr key={m.month} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
@@ -467,13 +520,15 @@ export function Earnings({ year, plan }: { year: string; plan: string }) {
               })}
               <tr className="border-t-2 border-border bg-secondary/30">
                 <td className="px-6 py-3.5 font-bold text-foreground" style={{ fontSize: 13 }}>Total</td>
-                <td className="px-6 py-3.5 font-bold text-primary"    style={{ fontSize: 14 }}>{fmtFull(Math.round(totalRevenue))}</td>
-                <td className="px-6 py-3.5 font-bold text-foreground" style={{ fontSize: 13 }}>{yearlyBase.length}</td>
+                <td className="px-6 py-3.5 font-bold text-primary"    style={{ fontSize: 14 }}>{fmtFull(Math.round(isAllTime ? totalRevenue : yearlyRevenue))}</td>
+                <td className="px-6 py-3.5 font-bold text-foreground" style={{ fontSize: 13 }}>{revenueBase.length}</td>
                 <td className="px-6 py-3.5 font-semibold text-muted-foreground" style={{ fontSize: 12 }}>{fmtFull(Math.round(avgRevenue))}</td>
                 <td className="px-6 py-3.5">
-                  <span style={{ fontSize: 12 }} className={`font-bold ${revenueGrowth >= 0 ? "text-emerald-600" : "text-red-500"}`}>
-                    {revenueGrowth >= 0 ? "+" : ""}{revenueGrowth}% YoY
-                  </span>
+                  {!isAllTime && revenueGrowth !== null && (
+                    <span style={{ fontSize: 12 }} className={`font-bold ${revenueGrowth >= 0 ? "text-emerald-600" : "text-red-500"}`}>
+                      {revenueGrowth >= 0 ? "+" : ""}{revenueGrowth}% YoY
+                    </span>
+                  )}
                 </td>
               </tr>
             </tbody>

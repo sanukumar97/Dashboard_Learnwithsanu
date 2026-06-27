@@ -10,10 +10,10 @@ import { type Student, MONTHLY_LABELS } from "../data/liveDashboard";
 
 const PALETTE = ["#3B5BFF","#8B5CF6","#22C55E","#F59E0B","#EF4444","#06B6D4","#F43F5E","#84CC16"];
 
-function cellCount(students: Student[], slug: string, mi: number, year: number) {
+function cellCount(students: Student[], slug: string, mi: number, yr?: number) {
   return students.filter(s => {
     const d = new Date(s.enrolledDate);
-    return d.getFullYear() === year && d.getMonth() === mi && s.planSlug === slug;
+    return (yr === undefined || d.getFullYear() === yr) && d.getMonth() === mi && s.planSlug === slug;
   }).length;
 }
 function heatBg(v: number, max: number) {
@@ -69,8 +69,9 @@ export function Analytics({ year, plan, onStudentClick }: {
   const [drillCell, setDrillCell] = useState<{ planSlug: string; month: string } | null>(null);
   const [barView, setBarView] = useState<"grouped" | "stacked">("grouped");
 
-  // Analytics always works with a specific year; "All Time" falls back to current year
-  const effectiveYear = year === "All Time" ? new Date().getFullYear() : parseInt(year);
+  const isAllTime = year === "All Time";
+  const yearNum   = isAllTime ? null : parseInt(year);
+  const heatYr    = yearNum ?? undefined;
 
   useEffect(() => {
     fetchAllPlansAdmin().then(all => setPlans(all.filter(p => p.is_active)));
@@ -81,81 +82,80 @@ export function Analytics({ year, plan, onStudentClick }: {
     return PALETTE[(idx >= 0 ? idx : 0) % PALETTE.length];
   };
 
-  // Only approved (onboarded) students count toward analytics
   const approvedStudents = allStudents.filter(s =>
     s.dbStatus === "submitted" && !!s.adminApprovedAt
   );
 
-  const filtered = approvedStudents.filter(s => {
-    const y = new Date(s.enrolledDate).getFullYear();
-    return y === effectiveYear && (plan === "All Plans" || s.planSlug === plan);
-  });
-  const prevYear = approvedStudents.filter(s =>
-    new Date(s.enrolledDate).getFullYear() === effectiveYear - 1 &&
+  const filtered = approvedStudents.filter(s =>
+    (isAllTime || new Date(s.enrolledDate).getFullYear() === yearNum!) &&
+    (plan === "All Plans" || s.planSlug === plan)
+  );
+  const prevYear = isAllTime ? [] : approvedStudents.filter(s =>
+    new Date(s.enrolledDate).getFullYear() === yearNum! - 1 &&
     (plan === "All Plans" || s.planSlug === plan)
   );
 
-  const total  = filtered.length;
-  const pTotal = prevYear.length;
-  const pct    = pTotal > 0 ? Math.round(((total - pTotal) / pTotal) * 100) : 0;
-  const active = filtered.filter(s => s.status !== "Completed" && s.status !== "Overdue").length;
-  const thisM  = new Date().getMonth();
-  const added  = filtered.filter(s => new Date(s.enrolledDate).getMonth() === thisM).length;
-  const sched  = filtered.filter(s => s.status === "Scheduled").length;
-  const unpend = filtered.filter(s => !!s.adminApprovedAt && !s.sessionDate).length;
-  const mails  = filtered.filter(s => s.mailSent).length;
-  const openR  = total > 0 ? Math.round((mails / total) * 100) : 0;
+  const total     = filtered.length;
+  const pTotal    = prevYear.length;
+  const growthPct = (!isAllTime && pTotal > 0) ? Math.round(((total - pTotal) / pTotal) * 100) : null;
+  const active    = filtered.filter(s => s.status !== "Completed" && s.status !== "Overdue").length;
+  const thisM     = new Date().getMonth();
+  const added     = filtered.filter(s => new Date(s.enrolledDate).getMonth() === thisM).length;
+  const sched     = filtered.filter(s => s.status === "Scheduled").length;
+  const unpend    = filtered.filter(s => !!s.adminApprovedAt && !s.sessionDate).length;
+  const mails     = filtered.filter(s => s.mailSent).length;
+  const openR     = total > 0 ? Math.round((mails / total) * 100) : 0;
 
-  function getMonthly(y: number, pFilter: string) {
+  function getMonthly(yr: number | null, pFilter: string) {
     return MONTHLY_LABELS.map((month, i) => ({
       month,
       count: approvedStudents.filter(s => {
         const d = new Date(s.enrolledDate);
-        return d.getFullYear() === y && d.getMonth() === i && (pFilter === "All Plans" || s.planSlug === pFilter);
+        return (yr === null || d.getFullYear() === yr) && d.getMonth() === i &&
+          (pFilter === "All Plans" || s.planSlug === pFilter);
       }).length,
     }));
   }
 
-  const monthly     = getMonthly(effectiveYear, plan);
-  const monthlyPrev = getMonthly(effectiveYear - 1, plan);
+  const monthly     = getMonthly(yearNum, plan);
+  const monthlyPrev = isAllTime ? null : getMonthly(yearNum! - 1, plan);
   const avg  = monthly.reduce((a, b) => a + b.count, 0) / 12;
   const peak = monthly.reduce((a, b) => b.count > a.count ? b : a, monthly[0]);
 
-  const trend = MONTHLY_LABELS.map((month, i) => ({
-    month, [effectiveYear]: monthly[i].count, [effectiveYear - 1]: monthlyPrev[i].count,
+  const trend = isAllTime ? [] : MONTHLY_LABELS.map((month, i) => ({
+    month, [yearNum!]: monthly[i].count, [yearNum! - 1]: monthlyPrev![i].count,
   }));
 
   const topMonths = MONTHLY_LABELS.map((month, i) => {
     const count = monthly[i].count;
-    const prevC = monthlyPrev[i].count;
+    const prevC = isAllTime ? 0 : monthlyPrev![i].count;
     const topPlan = plans.length > 0
-      ? plans.reduce((b, p) => cellCount(approvedStudents, p.slug, i, effectiveYear) > cellCount(approvedStudents, b.slug, i, effectiveYear) ? p : b, plans[0])
+      ? plans.reduce((b, p) => cellCount(approvedStudents, p.slug, i, heatYr) > cellCount(approvedStudents, b.slug, i, heatYr) ? p : b, plans[0])
       : null;
-    return { month, count, topSlug: topPlan?.slug ?? "—", pct: prevC > 0 ? Math.round(((count - prevC) / prevC) * 100) : 0 };
+    const moPct = (!isAllTime && prevC > 0) ? Math.round(((count - prevC) / prevC) * 100) : null;
+    return { month, count, topSlug: topPlan?.slug ?? "—", pct: moPct };
   }).sort((a, b) => b.count - a.count);
 
   const planComp = MONTHLY_LABELS.map((month, i) => {
     const row: Record<string, unknown> = { month };
-    plans.forEach(p => { row[p.slug] = cellCount(approvedStudents, p.slug, i, effectiveYear); });
+    plans.forEach(p => { row[p.slug] = cellCount(approvedStudents, p.slug, i, heatYr); });
     return row;
   });
 
   const planData = plans.map((p, i) => ({
     plan: p.slug,
-    count: approvedStudents.filter(s =>
-      new Date(s.enrolledDate).getFullYear() === effectiveYear && s.planSlug === p.slug
-    ).length,
+    count: filtered.filter(s => s.planSlug === p.slug).length,
     color: PALETTE[i % PALETTE.length],
   }));
   const planTotal = planData.reduce((a, b) => a + b.count, 0);
 
-  const allVals = plans.flatMap(p => MONTHLY_LABELS.map((_, i) => cellCount(approvedStudents, p.slug, i, effectiveYear)));
+  const allVals = plans.flatMap(p => MONTHLY_LABELS.map((_, i) => cellCount(approvedStudents, p.slug, i, heatYr)));
   const maxVal  = Math.max(...allVals, 1);
 
   const drillStudents = drillCell
     ? approvedStudents.filter(s => {
         const d = new Date(s.enrolledDate);
-        return d.getFullYear() === effectiveYear &&
+        return (isAllTime || d.getFullYear() === yearNum!) &&
           d.getMonth() === MONTHLY_LABELS.indexOf(drillCell.month) &&
           s.planSlug === drillCell.planSlug;
       })
@@ -176,10 +176,16 @@ export function Analytics({ year, plan, onStudentClick }: {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
-        <KpiCard title="Total Onboarded" value={total}  sub={`${pct >= 0 ? "+" : ""}${pct}% vs prior year`} trend={pct >= 0 ? "up" : "down"} icon={Users}        accent="#3B5BFF"/>
-        <KpiCard title="Active Students" value={active} sub={`+${added} this month`}                         trend="up"                        icon={UserCheck}    accent="#22C55E"/>
-        <KpiCard title="Sessions"       value={sched}  sub={`${unpend} unscheduled`}                        trend="neutral"                   icon={CalendarClock} accent="#8B5CF6"/>
-        <KpiCard title="Mails Sent"     value={mails}  sub={`${openR}% send rate`}                          trend="up"                        icon={Mail}         accent="#F59E0B"/>
+        <KpiCard
+          title="Total Onboarded"
+          value={total}
+          sub={growthPct !== null ? `${growthPct >= 0 ? "+" : ""}${growthPct}% vs prior year` : "All onboarded students"}
+          trend={growthPct !== null ? (growthPct >= 0 ? "up" : "down") : "neutral"}
+          icon={Users} accent="#3B5BFF"
+        />
+        <KpiCard title="Active Students" value={active} sub={`+${added} this month`}   trend="up"      icon={UserCheck}    accent="#22C55E"/>
+        <KpiCard title="Sessions"        value={sched}  sub={`${unpend} unscheduled`}  trend="neutral" icon={CalendarClock} accent="#8B5CF6"/>
+        <KpiCard title="Mails Sent"      value={mails}  sub={`${openR}% send rate`}    trend="up"      icon={Mail}         accent="#F59E0B"/>
       </div>
 
       {/* Enrollment bar + donut */}
@@ -244,7 +250,7 @@ export function Analytics({ year, plan, onStudentClick }: {
         <div className="px-6 py-4 border-b border-border">
           <h3 className="text-foreground">Onboarding Heatmap</h3>
           <p style={{ fontSize: 12 }} className="text-muted-foreground mt-0.5">
-            Plan × Month for {effectiveYear} — click any cell to drill in
+            Plan × Month {isAllTime ? "(All Time)" : `for ${yearNum}`} — click any cell to drill in
           </p>
         </div>
         <div className="overflow-x-auto p-5">
@@ -271,7 +277,7 @@ export function Analytics({ year, plan, onStudentClick }: {
                     </div>
                   </td>
                   {MONTHLY_LABELS.map((m, i) => {
-                    const v = cellCount(approvedStudents, p.slug, i, effectiveYear);
+                    const v = cellCount(approvedStudents, p.slug, i, heatYr);
                     const isDrill = drillCell?.planSlug === p.slug && drillCell.month === m;
                     return (
                       <td key={m} className="py-1 px-0.5">
@@ -294,7 +300,7 @@ export function Analytics({ year, plan, onStudentClick }: {
           <div className="border-t border-border px-6 py-4 bg-muted/30">
             <div className="flex items-center justify-between mb-3">
               <p className="font-semibold text-foreground" style={{ fontSize: 13 }}>
-                {drillCell.planSlug} — {drillCell.month} {effectiveYear}
+                {drillCell.planSlug} — {drillCell.month}{isAllTime ? " (All Time)" : ` ${yearNum}`}
                 <span className="ml-2 font-normal text-muted-foreground" style={{ fontSize: 12 }}>
                   ({drillStudents.length} students)
                 </span>
@@ -324,24 +330,26 @@ export function Analytics({ year, plan, onStudentClick }: {
         )}
       </div>
 
-      {/* YoY Trend */}
-      <div className="bg-card rounded-3xl p-5" style={{ boxShadow: "var(--shadow-card)" }}>
-        <h3 className="text-foreground mb-0.5">Year-over-Year Trend</h3>
-        <p style={{ fontSize: 12 }} className="text-muted-foreground mb-4">
-          <span className="text-primary font-medium">—</span> {effectiveYear} &nbsp;
-          <span className="text-emerald-500 font-medium">- -</span> {effectiveYear - 1}
-        </p>
-        <ResponsiveContainer width="100%" height={220}>
-          <LineChart data={trend}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false}/>
-            <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false}/>
-            <YAxis tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={26}/>
-            <Tooltip content={<Tip/>}/>
-            <Line type="monotone" dataKey={effectiveYear}     stroke="#3B5BFF" strokeWidth={2.5} dot={{ r: 3, fill: "#3B5BFF" }}/>
-            <Line type="monotone" dataKey={effectiveYear - 1} stroke="#22C55E" strokeWidth={2} strokeDasharray="5 4" dot={false}/>
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
+      {/* YoY Trend — only for specific year */}
+      {!isAllTime && (
+        <div className="bg-card rounded-3xl p-5" style={{ boxShadow: "var(--shadow-card)" }}>
+          <h3 className="text-foreground mb-0.5">Year-over-Year Trend</h3>
+          <p style={{ fontSize: 12 }} className="text-muted-foreground mb-4">
+            <span className="text-primary font-medium">—</span> {yearNum} &nbsp;
+            <span className="text-emerald-500 font-medium">- -</span> {yearNum! - 1}
+          </p>
+          <ResponsiveContainer width="100%" height={220}>
+            <LineChart data={trend}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false}/>
+              <XAxis dataKey="month" tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false}/>
+              <YAxis tick={{ fontSize: 11, fill: "var(--muted-foreground)" }} axisLine={false} tickLine={false} width={26}/>
+              <Tooltip content={<Tip/>}/>
+              <Line type="monotone" dataKey={yearNum!}     stroke="#3B5BFF" strokeWidth={2.5} dot={{ r: 3, fill: "#3B5BFF" }}/>
+              <Line type="monotone" dataKey={yearNum! - 1} stroke="#22C55E" strokeWidth={2} strokeDasharray="5 4" dot={false}/>
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Top months */}
@@ -351,7 +359,7 @@ export function Analytics({ year, plan, onStudentClick }: {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border bg-muted/40">
-                  {["Month", "Onboardings", "Top Plan", "vs Prior"].map(h => (
+                  {["Month", "Onboardings", "Top Plan", ...(!isAllTime ? ["vs Prior"] : [])].map(h => (
                     <th key={h} className="text-left px-6 py-3" style={{ fontSize: 11, letterSpacing: "0.05em" }}>
                       <span className="font-semibold text-muted-foreground uppercase">{h}</span>
                     </th>
@@ -371,11 +379,13 @@ export function Analytics({ year, plan, onStudentClick }: {
                         <span style={{ fontSize: 12 }} className="text-foreground">{r.topSlug || "—"}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-3">
-                      <span style={{ fontSize: 12 }} className={`font-semibold ${r.pct >= 0 ? "text-emerald-600" : "text-red-500"}`}>
-                        {r.pct >= 0 ? "+" : ""}{r.pct}%
-                      </span>
-                    </td>
+                    {!isAllTime && (
+                      <td className="px-6 py-3">
+                        <span style={{ fontSize: 12 }} className={`font-semibold ${(r.pct ?? 0) >= 0 ? "text-emerald-600" : "text-red-500"}`}>
+                          {r.pct !== null ? `${r.pct >= 0 ? "+" : ""}${r.pct}%` : "—"}
+                        </span>
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
