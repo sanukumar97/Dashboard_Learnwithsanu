@@ -91,6 +91,13 @@ export function Earnings({ year, plan }: { year: string; plan: string }) {
   const totalBase    = approvedBase.filter(inDateRange);
   const totalRevenue = totalBase.reduce((sum, s) => sum + s.planPrice, 0);
 
+  // Cumulative Revenue — all years up to and including selected year
+  const earliestYear = approvedBase.length > 0
+    ? Math.min(...approvedBase.map(s => new Date(s.enrolledDate).getFullYear()))
+    : (yearNum ?? new Date().getFullYear());
+  const cumulativeBase    = isAllTime ? totalBase : approvedBase.filter(s => new Date(s.enrolledDate).getFullYear() <= yearNum! && inDateRange(s));
+  const cumulativeRevenue = cumulativeBase.reduce((sum, s) => sum + s.planPrice, 0);
+
   // Yearly Revenue — year-specific (or same as total when All Time)
   const yearlyBase    = isAllTime
     ? totalBase
@@ -301,12 +308,21 @@ export function Earnings({ year, plan }: { year: string; plan: string }) {
 
       {/* KPI row — Yearly Revenue hidden when All Time */}
       <div className={`grid gap-4 ${isAllTime ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-2 xl:grid-cols-4"}`}>
-        <KpiCard
-          title="Total Revenue"
-          value={fmtFull(Math.round(totalRevenue))}
-          sub={`${totalBase.length} onboarded students`}
-          icon={RupeeIcon} accent="#3B5BFF"
-        />
+        {isAllTime ? (
+          <KpiCard
+            title="Total Revenue"
+            value={fmtFull(Math.round(totalRevenue))}
+            sub={`${totalBase.length} onboarded students`}
+            icon={RupeeIcon} accent="#3B5BFF"
+          />
+        ) : (
+          <KpiCard
+            title="Cumulative Revenue"
+            value={fmtFull(Math.round(cumulativeRevenue))}
+            sub={`${earliestYear} – ${yearNum} · ${cumulativeBase.length} students`}
+            icon={RupeeIcon} accent="#1A2AF1"
+          />
+        )}
         {!isAllTime && (
           <KpiCard
             title="Yearly Revenue"
